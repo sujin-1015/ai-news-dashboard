@@ -53,7 +53,8 @@ feeds:
   - { id: donga_it,     name: 동아일보,        kind: media, url: "https://rss.donga.com/science.xml" }
   - { id: donga_econ,   name: 동아일보,        kind: media, url: "https://rss.donga.com/economy.xml" }
   - { id: khan_econ,    name: 경향신문,        kind: media, url: "https://www.khan.co.kr/rss/rssdata/economy_news.xml" }
-  - { id: hani_econ,    name: 한겨레,          kind: media, url: "https://www.hani.co.kr/rss/economy/" }   # pubDate 없음 → 수집 시각 사용
+  # 한겨레: pubDate·요약이 없어 매 수집마다 최신으로 보임 → 비활성 (발행시각 제공 시 재검토)
+  - { id: hani_econ,    name: 한겨레,          kind: media, enabled: false, url: "https://www.hani.co.kr/rss/economy/" }
   - { id: yna_industry, name: 연합뉴스,        kind: media, url: "https://www.yna.co.kr/rss/industry.xml" }
   - { id: newsis_ind,   name: 뉴시스,          kind: media, url: "https://www.newsis.com/RSS/industry.xml" }
   # ── 정부·공공 ──────────────────────────────────

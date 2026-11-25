@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 뉴스 대시보드</title>
+  <meta name="description" content="국내 IT·AI 매체 RSS를 업종·주제·기업별로 분류한 개인 학습용 대시보드">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📰</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // 첫 페인트 전에 테마 적용 (깜빡임 방지)
+    (function () {
+      var t = localStorage.getItem("theme");
+      if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>AI 뉴스 대시보드</h1>
+      <span id="updated" class="muted"></span>
+    </div>
+    <div class="top-actions">
+      <input id="q" type="search" placeholder="키워드 검색 (제목·요약)" aria-label="키워드 검색">
+      <button id="themeBtn" class="icon-btn" aria-label="다크모드 전환" title="다크모드 전환">🌓</button>
+    </div>
+  </header>
+
+  <nav class="filters" aria-label="필터">
+    <div class="tabs" id="industryTabs" role="tablist" aria-label="업종"></div>
+
+    <div class="filter-row">
+      <select id="topic" aria-label="주제"><option value="">주제 전체</option></select>
+      <div class="combo">
+        <input id="company" list="companyList" placeholder="기업 검색" aria-label="기업 검색">
+        <datalist id="companyList"></datalist>
+      </div>
+      <select id="source" aria-label="매체"><option value="">매체 전체</option></select>
+      <select id="period" aria-label="기간">
+        <option value="today">오늘</option>
+        <option value="yesterday">어제</option>
+        <option value="3">최근 3일</option>
+        <option value="7" selected>최근 7일</option>
+      </select>
+    </div>
+
+    <div class="filter-row toggles">
+      <label class="switch"><input type="checkbox" id="unreadOnly"> 안 읽은 글만</label>
+      <label class="switch"><input type="checkbox" id="bookmarkOnly"> 북마크만</label>
+      <button id="resetBtn" class="link-btn">필터 초기화</button>
+      <button id="markAllBtn" class="link-btn">보이는 글 모두 읽음</button>
+      <span id="count" class="muted"></span>
+    </div>
+  </nav>
+
+  <main>
+    <ul id="list" class="cards" aria-live="polite"></ul>
+    <div id="sentinel"></div>
+    <p id="empty" class="empty" hidden>조건에 맞는 기사가 없습니다.</p>
+  </main>
+
+  <footer class="footer muted">
+    기사 저작권은 각 언론사에 있으며, 제목·짧은 요약·원문 링크만 표시합니다. 원문은 링크로 확인하세요.
+    <span id="feedHealth"></span>
+  </footer>
+
+  <!-- 메모 편집 -->
+  <dialog id="memoDialog">
+    <form method="dialog">
+      <h3 id="memoTitle"></h3>
+      <textarea id="memoText" rows="5" maxlength="2000" placeholder="메모 (이 기기에만 저장됩니다)"></textarea>
+      <menu><button value="cancel">취소</button><button value="save" class="primary">저장</button></menu>
+    </form>
+  </dialog>
+
+  <!-- 챗봇 -->
+  <button id="chatFab" class="chat-fab" aria-label="학습 도우미 열기">💬</button>
+  <section id="chatPanel" class="chat-panel" hidden aria-label="학습 도우미">
+    <header>
+      <strong>학습 도우미</strong>
+      <span class="muted small">모르는 용어·배경을 물어보세요</span>
+      <button id="chatSettingsBtn" class="icon-btn" aria-label="설정">⚙️</button>
+      <button id="chatClose" class="icon-btn" aria-label="닫기">✕</button>
+    </header>
+    <div id="chatSettings" class="chat-settings" hidden>
+      <label class="switch"><input type="checkbox" id="sendSummary"> 기사 요약도 함께 보내기 (기본: 제목·링크만)</label>
+      <p class="small muted">⚠ Gemini 무료 티어로 동작합니다. 무료 티어 입력은 구글 제품 개선에 사용될 수 있으니 개인정보를 입력하지 마세요.</p>
+      <button id="chatClear" class="link-btn">대화 지우기</button>
+    </div>
+    <div id="chatContext" class="chat-context"></div>
+    <div id="chatLog" class="chat-log"></div>
+    <form id="chatForm" class="chat-form">
+      <textarea id="chatInput" rows="2" maxlength="1000" placeholder="예: 이 기사에 나온 HBM이 뭐야?"></textarea>
+      <button class="primary" id="chatSend">보내기</button>
+    </form>
+  </section>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

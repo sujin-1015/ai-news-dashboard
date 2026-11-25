@@ -8,3 +8,4 @@ infra/cdk.out/
 infra/build/
 node_modules/
 .env
+frontend/config.json
