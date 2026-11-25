@@ -1,0 +1,7 @@
+{
+  "name": "ai-news-dashboard",
+  "private": true,
+  "description": "CDK CLI 버전 고정용 (npx cdk ...)",
+  "scripts": { "cdk": "cdk" },
+  "devDependencies": { "aws-cdk": "2.1149.0" }
+}

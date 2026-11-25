@@ -1,0 +1,66 @@
+# 테스트 → (main 푸시일 때) CDK 배포
+# - AWS 장기 액세스 키를 저장소에 두지 않는다. GitHub OIDC 토큰으로 IAM 역할을 assume (임시 자격 증명 1시간).
+# - 필요한 설정 (Settings → Secrets and variables → Actions)
+#     Variables: AWS_DEPLOY_ROLE_ARN  (AiNewsGithubOidc 스택 출력값)
+#     Secrets:   ALERT_EMAIL          (예산 알림 메일, 로그에 마스킹됨)
+name: test-and-deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false  # 배포 도중 취소되지 않게
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production  # (선택) 저장소 설정에서 승인 규칙을 걸 수 있다
+    permissions:
+      id-token: write  # OIDC 토큰 발급에 필요
+      contents: read
+    env:
+      AWS_REGION: ap-northeast-2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: pip install -r infra/requirements.txt
+      - run: npm ci
+
+      - name: AWS 자격 증명 (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}
+
+      - name: 변경 미리보기 (cdk diff)
+        working-directory: infra
+        env: { ALERT_EMAIL: "${{ secrets.ALERT_EMAIL }}" }
+        run: npx cdk diff AiNewsDashboard
+
+      - name: 배포 (cdk deploy)
+        working-directory: infra
+        env: { ALERT_EMAIL: "${{ secrets.ALERT_EMAIL }}" }
+        run: npx cdk deploy AiNewsDashboard --require-approval never
