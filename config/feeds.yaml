@@ -1,0 +1,64 @@
+# 수집할 RSS 피드 목록
+# - 모든 주소는 2026-11-25에 실제로 받아서 유효한 RSS인지 검증했다.
+# - id: 영문 소문자 고유값 (DynamoDB/JSON에 저장되는 매체 키)
+# - name: 화면에 보일 매체 이름
+# - kind: media(언론) | gov(정부·공공)
+# - enabled: false로 두면 수집 제외
+# 새 피드 추가: 아래 형식으로 한 줄 추가 → `python scripts/check_feeds.py`로 검증 → 커밋/배포
+
+feeds:
+  # ── AI / IT 전문지 ─────────────────────────────
+  - { id: aitimes,      name: AI타임스,        kind: media, url: "https://www.aitimes.com/rss/allArticle.xml" }
+  - { id: aitimes_kr,   name: 인공지능신문,     kind: media, url: "https://www.aitimes.kr/rss/allArticle.xml" }
+  - { id: etnews,       name: 전자신문,        kind: media, url: "https://rss.etnews.com/Section901.xml" }
+  - { id: etnews_it,    name: 전자신문,        kind: media, url: "https://rss.etnews.com/03.xml" }
+  - { id: etnews_econ,  name: 전자신문,        kind: media, url: "https://rss.etnews.com/02.xml" }
+  - { id: etnews_elec,  name: 전자신문,        kind: media, url: "https://rss.etnews.com/06.xml" }
+  - { id: zdnet,        name: ZDNet Korea,    kind: media, url: "https://feeds.feedburner.com/zdkorea" }
+  - { id: bloter,       name: 블로터,          kind: media, url: "https://www.bloter.net/rss/allArticle.xml" }
+  - { id: digitaltoday, name: 디지털투데이,     kind: media, url: "https://www.digitaltoday.co.kr/rss/allArticle.xml" }
+  - { id: inews24,      name: 아이뉴스24,       kind: media, url: "https://www.inews24.com/rss/news_it.xml" }
+  - { id: byline,       name: 바이라인네트워크,  kind: media, url: "https://byline.network/feed/" }
+  - { id: techm,        name: 테크M,          kind: media, url: "https://www.techm.kr/rss/allArticle.xml" }
+  - { id: itdaily,      name: 아이티데일리,     kind: media, url: "https://www.itdaily.kr/rss/allArticle.xml" }
+  - { id: itworld,      name: ITWorld Korea,  kind: media, url: "https://www.itworld.co.kr/feed/" }
+  - { id: koit,         name: 정보통신신문,     kind: media, url: "https://www.koit.co.kr/rss/allArticle.xml" }
+  - { id: tech42,       name: 테크42,          kind: media, url: "https://www.tech42.co.kr/feed/" }
+  - { id: thelec,       name: 디일렉,          kind: media, url: "https://www.thelec.kr/rss/allArticle.xml" }
+  - { id: datanet,      name: 데이터넷,        kind: media, url: "https://www.datanet.co.kr/rss/allArticle.xml" }
+  - { id: epnc,         name: 테크월드,        kind: media, url: "https://www.epnc.co.kr/rss/allArticle.xml" }
+  - { id: gttkorea,     name: 지티티코리아,     kind: media, url: "https://www.gttkorea.com/rss/allArticle.xml" }
+  - { id: irobotnews,   name: 로봇신문,        kind: media, url: "https://www.irobotnews.com/rss/allArticle.xml" }
+  # ── 보안 ──────────────────────────────────────
+  - { id: boannews,     name: 보안뉴스,        kind: media, url: "https://www.boannews.com/rss/allArticle.xml" }
+  - { id: dailysecu,    name: 데일리시큐,       kind: media, url: "https://www.dailysecu.com/rss/allArticle.xml" }
+  # ── 경제지 IT·경제 섹션 ──────────────────────────
+  - { id: hankyung_it,  name: 한국경제,        kind: media, url: "https://www.hankyung.com/feed/it" }
+  - { id: mk_it,        name: 매일경제,        kind: media, url: "https://www.mk.co.kr/rss/50300009/" }
+  - { id: mk_econ,      name: 매일경제,        kind: media, url: "https://www.mk.co.kr/rss/30100041/" }
+  - { id: sedaily_it,   name: 서울경제,        kind: media, url: "https://www.sedaily.com/rss/it" }
+  - { id: herald_it,    name: 헤럴드경제,       kind: media, url: "https://biz.heraldcorp.com/rss/google/it" }
+  - { id: fnnews_it,    name: 파이낸셜뉴스,     kind: media, url: "https://www.fnnews.com/rss/r20/fn_realnews_it.xml" }
+  - { id: chosunbiz_it, name: 조선비즈,        kind: media, url: "https://biz.chosun.com/arc/outboundfeeds/rss/category/it-science/?outputType=xml" }
+  - { id: sisajournal_e, name: 시사저널e,      kind: media, url: "https://www.sisajournal-e.com/rss/allArticle.xml" }
+  - { id: ajunews_ai,   name: 아주경제,        kind: media, url: "https://www.ajunews.com/rss/ai.xml" }
+  - { id: pinpoint,     name: 핀포인트뉴스,     kind: media, url: "https://www.pinpointnews.co.kr/rss/allArticle.xml" }
+  # ── 금융 전문지 ────────────────────────────────
+  - { id: kbanker,      name: 대한금융신문,     kind: media, url: "https://www.kbanker.co.kr/rss/allArticle.xml" }
+  - { id: ftoday,       name: 파이낸셜투데이,   kind: media, url: "https://www.ftoday.co.kr/rss/allArticle.xml" }
+  - { id: insweek,      name: 보험신보,        kind: media, url: "https://www.insweek.co.kr/rss/allArticle.xml" }
+  - { id: newsis_bank,  name: 뉴시스,          kind: media, url: "https://www.newsis.com/RSS/bank.xml" }
+  # ── 종합지 경제·산업 섹션 ────────────────────────
+  - { id: chosun_econ,  name: 조선일보,        kind: media, url: "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml" }
+  - { id: donga_it,     name: 동아일보,        kind: media, url: "https://rss.donga.com/science.xml" }
+  - { id: donga_econ,   name: 동아일보,        kind: media, url: "https://rss.donga.com/economy.xml" }
+  - { id: khan_econ,    name: 경향신문,        kind: media, url: "https://www.khan.co.kr/rss/rssdata/economy_news.xml" }
+  - { id: hani_econ,    name: 한겨레,          kind: media, url: "https://www.hani.co.kr/rss/economy/" }   # pubDate 없음 → 수집 시각 사용
+  - { id: yna_industry, name: 연합뉴스,        kind: media, url: "https://www.yna.co.kr/rss/industry.xml" }
+  - { id: newsis_ind,   name: 뉴시스,          kind: media, url: "https://www.newsis.com/RSS/industry.xml" }
+  # ── 정부·공공 ──────────────────────────────────
+  - { id: msit_press,   name: 과기정통부,       kind: gov, url: "https://www.msit.go.kr/user/rss/rss.do?bbsSeqNo=94" }
+  - { id: msit_explain, name: 과기정통부,       kind: gov, url: "https://www.msit.go.kr/user/rss/rss.do?bbsSeqNo=86" }
+  - { id: mois_press,   name: 행정안전부,       kind: gov, url: "https://www.mois.go.kr/gpms/view/jsp/rss/rss.jsp?ctxCd=1012" }
+  - { id: kisa_notice,  name: KISA 보호나라,    kind: gov, url: "https://www.boho.or.kr/kr/rss.do?bbsId=B0000133" }
+  - { id: kisa_news,    name: KISA 보호나라,    kind: gov, url: "https://www.boho.or.kr/kr/rss.do?bbsId=B0000127" }

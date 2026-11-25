@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+out/
+frontend/data/
+infra/cdk.out/
+infra/build/
+node_modules/
+.env

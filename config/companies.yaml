@@ -1,0 +1,117 @@
+# 기업 사전: 업종 → 기업 목록
+# - name: 화면에 보일 대표 이름
+# - aliases: 기사에서 찾을 별칭 (매칭 규칙은 taxonomy.yaml 상단 설명과 같다)
+# - exclude: 이 문구는 지우고 매칭 (예: "카카오" 사전에서 "카카오뱅크"를 지워서 중복 매칭 방지)
+# 기업이 매칭되면 그 업종도 기사에 자동으로 붙는다.
+# 너무 일반적인 단어(우리, 하나, 삼성, LG, SK, 현대 단독)는 별칭으로 쓰지 말 것 → 오분류 원인
+
+금융:
+  - { name: KB금융,       aliases: [KB금융, KB국민은행, 국민은행, KB국민카드, KB증권, KB손해보험, KB손보, KB라이프, KB] }
+  - { name: 신한금융,      aliases: [신한금융, 신한은행, 신한카드, 신한투자증권, 신한라이프, 신한] , exclude: [신한울] }
+  - { name: 하나금융,      aliases: [하나금융, 하나은행, 하나카드, 하나증권, 하나생명] }
+  - { name: 우리금융,      aliases: [우리금융, 우리은행, 우리카드, 우리투자증권] }
+  - { name: NH농협금융,    aliases: [NH농협, 농협금융, 농협은행, NH투자증권, NH농협카드, 농협생명, NH] }
+  - { name: IBK기업은행,   aliases: [IBK기업은행, 기업은행, IBK] }
+  - { name: 카카오뱅크,    aliases: [카카오뱅크, 카뱅] }
+  - { name: 카카오페이,    aliases: [카카오페이] }
+  - { name: 케이뱅크,      aliases: [케이뱅크, K뱅크] }
+  - { name: 토스,         aliases: [토스뱅크, 토스증권, 토스페이먼츠, 비바리퍼블리카, 토스], exclude: [토스트] }
+  - { name: 네이버파이낸셜, aliases: [네이버파이낸셜, 네이버페이] }
+  - { name: 삼성카드,      aliases: [삼성카드] }
+  - { name: 삼성생명,      aliases: [삼성생명] }
+  - { name: 삼성화재,      aliases: [삼성화재] }
+  - { name: 삼성증권,      aliases: [삼성증권] }
+  - { name: 현대카드,      aliases: [현대카드, 현대캐피탈] }
+  - { name: 롯데카드,      aliases: [롯데카드] }
+  - { name: BC카드,       aliases: [BC카드, 비씨카드] }
+  - { name: 미래에셋,      aliases: [미래에셋] }
+  - { name: 한국투자증권,  aliases: [한국투자증권, 한국투자금융, 한투증권] }
+  - { name: 키움증권,      aliases: [키움증권, 키움] }
+  - { name: 한화생명,      aliases: [한화생명, 한화손해보험, 한화손보, 한화투자증권] }
+  - { name: 교보생명,      aliases: [교보생명] }
+  - { name: DB손해보험,    aliases: [DB손해보험, DB손보] }
+  - { name: 업비트,       aliases: [업비트, 두나무] }
+  - { name: 빗썸,         aliases: [빗썸] }
+  - { name: 한국은행,      aliases: [한국은행, 한은] , exclude: [한은행] }
+
+IT:
+  - { name: 네이버,       aliases: [네이버, NAVER, 네이버클라우드, 하이퍼클로바], exclude: [네이버파이낸셜, 네이버페이] }
+  - { name: 카카오,       aliases: [카카오, 카카오엔터프라이즈, 카카오모빌리티], exclude: [카카오뱅크, 카카오페이, 카뱅] }
+  - { name: 삼성SDS,      aliases: [삼성SDS] }
+  - { name: LG CNS,      aliases: [LG CNS, LGCNS, LG씨엔에스] }
+  - { name: SK AX,       aliases: [SK AX, SK C&C, SK씨앤씨] }
+  - { name: 현대오토에버,  aliases: [현대오토에버] }
+  - { name: 포스코DX,     aliases: [포스코DX] }
+  - { name: KT,          aliases: [KT, KT클라우드, kt cloud] }
+  - { name: SK텔레콤,     aliases: [SK텔레콤, SKT] }
+  - { name: LG유플러스,   aliases: [LG유플러스, LGU+, LG U+] }
+  - { name: 쿠팡,        aliases: [쿠팡] }
+  - { name: 배달의민족,   aliases: [배달의민족, 배민, 우아한형제들] }
+  - { name: 당근,        aliases: [당근마켓] }
+  - { name: 엔씨소프트,   aliases: [엔씨소프트, NC소프트, 엔씨] }
+  - { name: 크래프톤,     aliases: [크래프톤] }
+  - { name: 넥슨,        aliases: [넥슨] }
+  - { name: 넷마블,      aliases: [넷마블] }
+  - { name: 업스테이지,   aliases: [업스테이지] }
+  - { name: 리벨리온,     aliases: [리벨리온] }
+  - { name: 퓨리오사AI,   aliases: [퓨리오사AI, 퓨리오사] }
+  - { name: 구글,        aliases: [구글, Google, 알파벳, 딥마인드, DeepMind] }
+  - { name: 마이크로소프트, aliases: [마이크로소프트, Microsoft, MS] }
+  - { name: 오픈AI,      aliases: [오픈AI, OpenAI, 챗GPT, ChatGPT] }
+  - { name: 앤트로픽,     aliases: [앤트로픽, 앤스로픽, Anthropic] }
+  - { name: 엔비디아,     aliases: [엔비디아, NVIDIA, Nvidia] }
+  - { name: 메타,        aliases: [메타, Meta], exclude: [메타버스, 메타데이터, 메타인지] }
+  - { name: 애플,        aliases: [애플, Apple], exclude: [애플리케이션] }
+  - { name: 아마존,      aliases: [아마존, Amazon, AWS] }
+  - { name: xAI,        aliases: [xAI] }
+  - { name: 딥시크,      aliases: [딥시크, DeepSeek] }
+  - { name: 오라클,      aliases: [오라클, Oracle] }
+  - { name: IBM,        aliases: [IBM] }
+  - { name: 세일즈포스,   aliases: [세일즈포스, Salesforce] }
+  - { name: 알리바바,    aliases: [알리바바, Alibaba] }
+  - { name: 화웨이,      aliases: [화웨이, Huawei] }
+
+제조:
+  - { name: 삼성전자,     aliases: [삼성전자, Samsung Electronics] }
+  - { name: SK하이닉스,   aliases: [SK하이닉스, 하이닉스] }
+  - { name: LG전자,      aliases: [LG전자] }
+  - { name: LG에너지솔루션, aliases: [LG에너지솔루션, LG엔솔] }
+  - { name: 삼성SDI,     aliases: [삼성SDI] }
+  - { name: SK온,       aliases: [SK온] }
+  - { name: 삼성디스플레이, aliases: [삼성디스플레이] }
+  - { name: LG디스플레이, aliases: [LG디스플레이] }
+  - { name: 현대차,      aliases: [현대차, 현대자동차, 현대차그룹] }
+  - { name: 기아,        aliases: [기아, Kia], exclude: [기아차량, 기아대책] }
+  - { name: 현대모비스,   aliases: [현대모비스] }
+  - { name: 포스코,      aliases: [포스코, POSCO], exclude: [포스코DX] }
+  - { name: 한화,        aliases: [한화에어로스페이스, 한화오션, 한화시스템, 한화솔루션, 한화그룹, 한화], exclude: [한화생명, 한화손해보험, 한화손보, 한화투자증권] }
+  - { name: 삼성중공업,   aliases: [삼성중공업] }
+  - { name: HD현대,      aliases: [HD현대, HD한국조선해양, HD현대중공업] }
+  - { name: 두산,        aliases: [두산에너빌리티, 두산로보틱스, 두산] }
+  - { name: 레인보우로보틱스, aliases: [레인보우로보틱스] }
+  - { name: LG화학,      aliases: [LG화학] }
+  - { name: 테슬라,      aliases: [테슬라, Tesla] }
+  - { name: TSMC,       aliases: [TSMC] }
+  - { name: 인텔,        aliases: [인텔, Intel] }
+  - { name: AMD,        aliases: [AMD] }
+  - { name: 퀄컴,        aliases: [퀄컴, Qualcomm] }
+  - { name: 마이크론,     aliases: [마이크론, Micron] }
+  - { name: ASML,       aliases: [ASML] }
+
+공공:
+  - { name: 과기정통부,   aliases: [과기정통부, 과학기술정보통신부, 과기부] }
+  - { name: KISA,       aliases: [KISA, 한국인터넷진흥원] }
+  - { name: 행안부,      aliases: [행안부, 행정안전부] }
+  - { name: 금융위,      aliases: [금융위원회, 금융위] }
+  - { name: 금감원,      aliases: [금융감독원, 금감원] }
+  - { name: 국정원,      aliases: [국가정보원, 국정원] }
+  - { name: NIA,        aliases: [NIA, 한국지능정보사회진흥원] }
+  - { name: 개인정보위,   aliases: [개인정보보호위원회, 개인정보위, 개보위] }
+  - { name: 방미통위,    aliases: [방송미디어통신위원회, 방미통위, 방송통신위원회, 방통위] }
+  - { name: 산업부,      aliases: [산업통상자원부, 산업통상부, 산업부] }
+  - { name: 기재부,      aliases: [기획재정부, 재정경제부, 기재부] }
+  - { name: 공정위,      aliases: [공정거래위원회, 공정위] }
+  - { name: 중기부,      aliases: [중소벤처기업부, 중기부] }
+  - { name: NIPA,       aliases: [정보통신산업진흥원, NIPA] }
+  - { name: IITP,       aliases: [정보통신기획평가원, IITP] }
+  - { name: 조달청,      aliases: [조달청] }
