@@ -6,6 +6,7 @@ from pathlib import Path
 
 from aws_cdk import (
     CfnOutput,
+    Fn,
     Duration,
     RemovalPolicy,
     Stack,
@@ -79,6 +80,19 @@ class DashboardStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
+        # ── 접속 보호: CloudFront Function Basic 인증 ───────────
+        # 비밀번호 해시는 KeyValueStore에만 둔다 (코드/저장소/템플릿에 없음). 설정: scripts/set-site-password.ps1
+        auth_kvs = cf.KeyValueStore(self, "SiteAuthStore", comment="sha256(user:password) for site basic auth")
+        js = (Path(__file__).resolve().parents[1] / "cloudfront" / "basic_auth.js").read_text(encoding="utf-8")
+        before, after = js.split("__KVS_ID__")
+        auth_fn = cf.Function(
+            self, "SiteAuthFn",
+            comment="Basic auth for the dashboard",
+            runtime=cf.FunctionRuntime.JS_2_0,
+            key_value_store=auth_kvs,
+            code=cf.FunctionCode.from_inline(Fn.join("", [before, auth_kvs.key_value_store_id, after])),
+        )
+
         # ── 화면: CloudFront ───────────────────────────────────
         distribution = cf.Distribution(
             self, "Cdn",
@@ -89,6 +103,9 @@ class DashboardStack(Stack):
                 cache_policy=cf.CachePolicy.CACHING_OPTIMIZED,  # gzip/brotli 압축 포함
                 response_headers_policy=cf.ResponseHeadersPolicy.SECURITY_HEADERS,
                 compress=True,
+                function_associations=[cf.FunctionAssociation(
+                    event_type=cf.FunctionEventType.VIEWER_REQUEST, function=auth_fn,
+                )],
             ),
             price_class=cf.PriceClass.PRICE_CLASS_200,  # 한국 엣지 포함, 남미·호주 제외
             http_version=cf.HttpVersion.HTTP2_AND_3,
@@ -254,3 +271,4 @@ class DashboardStack(Stack):
         CfnOutput(self, "ChatApiUrl", value=chat_url)
         CfnOutput(self, "CollectorFunctionName", value=collector.function_name)
         CfnOutput(self, "SiteBucketName", value=bucket.bucket_name)
+        CfnOutput(self, "SiteAuthStoreArn", value=auth_kvs.key_value_store_arn)
