@@ -157,10 +157,13 @@ class DashboardStack(Stack):
                 "GEMINI_KEY_PARAM": key_param_name,
                 "GEMINI_MODEL_PARAM": model_param.parameter_name,
                 "LLM_PROVIDER": "gemini",
+                # 예상 비용 표시용 단가(USD/100만 토큰). 무료 티어는 0
+                "PRICE_INPUT_PER_M": str(ctx("llmPriceInputPerM") or 0),
+                "PRICE_OUTPUT_PER_M": str(ctx("llmPriceOutputPerM") or 0),
             },
         )
         chat.add_to_role_policy(iam.PolicyStatement(
-            actions=["dynamodb:UpdateItem"], resources=[usage.table_arn],
+            actions=["dynamodb:UpdateItem", "dynamodb:GetItem"], resources=[usage.table_arn],
         ))
         chat.add_to_role_policy(iam.PolicyStatement(
             actions=["ssm:GetParameter"],
@@ -178,7 +181,7 @@ class DashboardStack(Stack):
             create_default_stage=False,
             cors_preflight=apigw.CorsPreflightOptions(
                 allow_origins=[site_origin],  # 내 CloudFront 도메인만
-                allow_methods=[apigw.CorsHttpMethod.POST],
+                allow_methods=[apigw.CorsHttpMethod.POST, apigw.CorsHttpMethod.GET],
                 allow_headers=["content-type"],
                 max_age=Duration.hours(1),
             ),
@@ -197,6 +200,11 @@ class DashboardStack(Stack):
             path="/chat",
             methods=[apigw.HttpMethod.POST],
             integration=integrations.HttpLambdaIntegration("ChatIntegration", chat),
+        )
+        api.add_routes(  # 오늘 챗봇 사용량(횟수·토큰·예상 비용) 조회
+            path="/usage",
+            methods=[apigw.HttpMethod.GET],
+            integration=integrations.HttpLambdaIntegration("UsageIntegration", chat),
         )
         chat_url = f"{api.api_endpoint}/chat"
 

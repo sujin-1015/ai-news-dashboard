@@ -68,11 +68,30 @@ function renderContext() {
   box.append(" ", x);
 }
 
+// 오늘 사용량 표시: 횟수 / 상한 · 토큰 · 예상 비용
+function renderUsage(u) {
+  if (!u) return;
+  const cost = u.freeTier ? "$0 (무료 티어)" : `약 $${u.estCostUsd.toFixed(4)}`;
+  $("#chatUsage").textContent =
+    `오늘 ${u.count}/${u.limit}회 · 토큰 ${(u.inputTokens + u.outputTokens).toLocaleString()}` +
+    ` (입력 ${u.inputTokens.toLocaleString()} / 출력 ${u.outputTokens.toLocaleString()}) · 예상 비용 ${cost}`;
+}
+
+async function refreshUsage() {
+  if (!apiUrl) return;
+  try {
+    const usageUrl = apiUrl.slice(0, apiUrl.lastIndexOf("/")) + "/usage";
+    const r = await fetch(usageUrl, { cache: "no-store" });
+    if (r.ok) renderUsage((await r.json()).usage);
+  } catch { /* 표시용이라 실패해도 무시 */ }
+}
+
 export function setChatArticle(article, open = false) {
   current = article;
   renderContext();
   if (open) {
     $("#chatPanel").hidden = false;
+    refreshUsage();
     $("#chatInput").focus();
   }
 }
@@ -112,6 +131,7 @@ async function send(question) {
     }
     pending.classList.add("md");
     renderMarkdown(pending, data.answer);
+    renderUsage(data.usage);
     history.push({ role: "user", text: question }, { role: "model", text: data.answer });
   } catch {
     pending.className = "msg err";
@@ -126,7 +146,10 @@ export function initChat(config) {
   apiUrl = config.chatApiUrl || "";
   $("#sendSummary").checked = localStorage.getItem("chatSendSummary") === "1";
   $("#sendSummary").onchange = (e) => localStorage.setItem("chatSendSummary", e.target.checked ? "1" : "0");
-  $("#chatFab").onclick = () => { $("#chatPanel").hidden = !$("#chatPanel").hidden; if (!$("#chatPanel").hidden) $("#chatInput").focus(); };
+  $("#chatFab").onclick = () => {
+    $("#chatPanel").hidden = !$("#chatPanel").hidden;
+    if (!$("#chatPanel").hidden) { $("#chatInput").focus(); refreshUsage(); }
+  };
   $("#chatClose").onclick = () => { $("#chatPanel").hidden = true; };
   $("#chatSettingsBtn").onclick = () => { $("#chatSettings").hidden = !$("#chatSettings").hidden; };
   $("#chatClear").onclick = () => { history = []; $("#chatLog").replaceChildren(); };

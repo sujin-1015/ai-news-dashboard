@@ -21,14 +21,27 @@ def h(monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / "lambdas" / "chat"))
     sys.modules.pop("handler", None)
     mod = importlib.import_module("handler")
+    from llm import LLMResult
+
+    mod.LLMResult = LLMResult
 
     class Usage:
-        n = 0
+        def __init__(self):
+            self.item = {}
 
         def update_item(self, **kw):
-            if self.n >= kw["ExpressionAttributeValues"][":max"]:
-                raise ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "UpdateItem")
-            self.n += 1
+            v = kw["ExpressionAttributeValues"]
+            if ":max" in v:  # take_quota
+                if self.item.get("count", 0) >= v[":max"]:
+                    raise ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "UpdateItem")
+                self.item["count"] = self.item.get("count", 0) + 1
+                return {}
+            self.item["inTok"] = self.item.get("inTok", 0) + v[":i"]  # add_tokens
+            self.item["outTok"] = self.item.get("outTok", 0) + v[":o"]
+            return {"Attributes": dict(self.item)}
+
+        def get_item(self, Key):
+            return {"Item": dict(self.item)} if self.item else {}
 
     class SSM:
         class exceptions:
@@ -43,7 +56,7 @@ def h(monkeypatch):
 
         def generate(self, system, messages, max_tokens=800):
             FakeLLM.calls.append((system, messages))
-            return "답변"
+            return mod.LLMResult("답변", input_tokens=100, output_tokens=50)
 
     monkeypatch.setattr(mod, "usage", Usage())
     monkeypatch.setattr(mod, "ssm", SSM())
@@ -133,3 +146,46 @@ def test_gemini_retries_once_on_overload(monkeypatch):
 
     monkeypatch.setattr(c, "_call", flaky)
     assert c.generate("s", [Message("user", "q")]) == "ok" and len(calls) == 2
+
+
+def test_gemini_parses_usage_metadata(monkeypatch):
+    sys.path.insert(0, str(ROOT / "lambdas" / "chat"))
+    import io
+    from llm import gemini
+    from llm.base import Message
+
+    payload = {"candidates": [{"content": {"parts": [{"text": "답"}]}}],
+               "usageMetadata": {"promptTokenCount": 12, "candidatesTokenCount": 30, "thoughtsTokenCount": 5}}
+
+    class R(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(gemini.urllib.request, "urlopen", lambda req, timeout: R(json.dumps(payload).encode()))
+    r = gemini.GeminiClient("k", "m").generate("s", [Message("user", "q")])
+    assert (r.text, r.input_tokens, r.output_tokens) == ("답", 12, 35)
+
+
+def test_usage_tracked_and_returned(h):
+    r = h.handler(ev({"question": "1"}), None)
+    u = json.loads(r["body"])["usage"]
+    assert u == {"count": 1, "limit": 2, "inputTokens": 100, "outputTokens": 50, "estCostUsd": 0.0, "freeTier": True}
+    h.handler(ev({"question": "2"}), None)
+    get = {"headers": {"Origin": ORIGIN}, "requestContext": {"http": {"method": "GET"}}}
+    u = json.loads(h.handler(get, None)["body"])["usage"]
+    assert u["count"] == 2 and u["inputTokens"] == 200 and u["outputTokens"] == 100
+
+
+def test_estimated_cost_with_prices(h, monkeypatch):
+    monkeypatch.setattr(h, "PRICE_IN", 0.10)
+    monkeypatch.setattr(h, "PRICE_OUT", 0.40)
+    u = json.loads(h.handler(ev({"question": "1"}), None)["body"])["usage"]
+    assert u["freeTier"] is False and u["estCostUsd"] == round(100 / 1e6 * 0.10 + 50 / 1e6 * 0.40, 6)
+
+
+def test_usage_get_rejects_other_origin(h):
+    get = {"headers": {"Origin": "https://evil.example"}, "requestContext": {"http": {"method": "GET"}}}
+    assert h.handler(get, None)["statusCode"] == 403

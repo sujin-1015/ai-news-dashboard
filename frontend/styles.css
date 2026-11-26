@@ -105,6 +105,8 @@ dialog menu button { border: 1px solid var(--line); background: none; border-rad
 .msg.md code { background: var(--card); padding: 0 4px; border-radius: 4px; font-size: 13px; }
 .msg.err { align-self: center; background: none; color: var(--muted); font-size: 13px; text-align: center; }
 .chat-form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+.chat-usage { padding: 0 12px 8px; text-align: right; }
+.chat-usage:empty { display: none; }
 .chat-form textarea { flex: 1; resize: none; }
 
 @media (max-width: 640px) {

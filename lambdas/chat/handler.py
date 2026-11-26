@@ -35,6 +35,9 @@ MAX_QUESTION = 1000
 MAX_HISTORY = 6
 MAX_FIELD = 300
 CACHE_SECONDS = 600
+# 예상 비용 계산용 단가 (USD / 100만 토큰). 무료 티어는 0. 유료 모델로 바꾸면 cdk.json에서 설정.
+PRICE_IN = float(os.environ.get("PRICE_INPUT_PER_M", "0"))
+PRICE_OUT = float(os.environ.get("PRICE_OUTPUT_PER_M", "0"))
 
 ssm = boto3.client("ssm")
 usage = boto3.resource("dynamodb").Table(USAGE_TABLE)
@@ -63,12 +66,15 @@ def param(name: str, decrypt: bool = False) -> str:
     return v
 
 
+def today_key() -> dict:
+    return {"pk": f"chat#{datetime.now(KST).date().isoformat()}"}
+
+
 def take_quota() -> bool:
     """오늘 카운터 +1. 상한에 도달했으면 False (조건부 업데이트라 동시 요청에도 정확)."""
-    day = datetime.now(KST).date().isoformat()
     try:
         usage.update_item(
-            Key={"pk": f"chat#{day}"},
+            Key=today_key(),
             UpdateExpression="ADD #c :one SET expiresAt = if_not_exists(expiresAt, :exp)",
             ConditionExpression="attribute_not_exists(#c) OR #c < :max",
             ExpressionAttributeNames={"#c": "count"},
@@ -80,6 +86,33 @@ def take_quota() -> bool:
         if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return False
         raise
+
+
+def summarize(item: dict) -> dict:
+    tin, tout = int(item.get("inTok", 0)), int(item.get("outTok", 0))
+    return {
+        "count": int(item.get("count", 0)),
+        "limit": DAILY_LIMIT,
+        "inputTokens": tin,
+        "outputTokens": tout,
+        "estCostUsd": round(tin / 1e6 * PRICE_IN + tout / 1e6 * PRICE_OUT, 6),
+        "freeTier": PRICE_IN == 0 and PRICE_OUT == 0,
+    }
+
+
+def add_tokens(tin: int, tout: int) -> dict:
+    """오늘 토큰 합계를 원자적으로 더하고, 갱신된 오늘 사용량을 돌려준다."""
+    r = usage.update_item(
+        Key=today_key(),
+        UpdateExpression="ADD inTok :i, outTok :o",
+        ExpressionAttributeValues={":i": tin, ":o": tout},
+        ReturnValues="ALL_NEW",
+    )
+    return summarize(r.get("Attributes", {}))
+
+
+def get_usage() -> dict:
+    return summarize(usage.get_item(Key=today_key()).get("Item") or {})
 
 
 def clip(v, n: int = MAX_FIELD) -> str:
@@ -116,6 +149,8 @@ def handler(event, context):
     origin = headers.get("origin", "")
     if ALLOWED_ORIGINS and origin not in ALLOWED_ORIGINS:
         return resp(403, {"error": "forbidden"})
+    if event.get("requestContext", {}).get("http", {}).get("method") == "GET":  # GET /usage
+        return resp(200, {"usage": get_usage()})
     try:
         question, article, history = parse_request(event)
     except ValueError as e:
@@ -133,7 +168,7 @@ def handler(event, context):
 
     try:
         client = get_client(PROVIDER, param(KEY_PARAM, decrypt=True), param(MODEL_PARAM))
-        answer = client.generate(system, [*history, Message("user", question)])
+        result = client.generate(system, [*history, Message("user", question)])
     except ssm.exceptions.ParameterNotFound:
         log.error(json.dumps({"event": "not_configured", "param": KEY_PARAM}))
         return resp(503, {"error": "not_configured"})
@@ -146,6 +181,9 @@ def handler(event, context):
         log.error(json.dumps({"event": "llm_error", "error": str(e)[:300]}, ensure_ascii=False))
         return resp(502, {"error": "llm_error"})
 
-    # 질문 내용은 로그에 남기지 않는다 (길이만)
-    log.info(json.dumps({"event": "chat_ok", "q_len": len(question), "a_len": len(answer), "ctx": bool(article)}))
-    return resp(200, {"answer": answer})
+    today = add_tokens(result.input_tokens, result.output_tokens)
+    # 질문 내용은 로그에 남기지 않는다 (길이와 토큰 수만)
+    log.info(json.dumps({"event": "chat_ok", "q_len": len(question), "a_len": len(result.text), "ctx": bool(article),
+                         "in_tok": result.input_tokens, "out_tok": result.output_tokens}))
+    return resp(200, {"answer": result.text, "usage": today,
+                      "tokens": {"input": result.input_tokens, "output": result.output_tokens}})

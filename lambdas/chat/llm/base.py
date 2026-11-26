@@ -23,8 +23,15 @@ class RateLimited(LLMError):
     """공급자 한도 초과 (HTTP 429)."""
 
 
+@dataclass
+class LLMResult:
+    text: str
+    input_tokens: int = 0  # 공급자가 알려준 사용량 (비용 표시용)
+    output_tokens: int = 0
+
+
 class LLMClient(Protocol):
-    def generate(self, system: str, messages: list[Message], max_tokens: int = 800) -> str: ...
+    def generate(self, system: str, messages: list[Message], max_tokens: int = 800) -> LLMResult: ...
 
 
 class Overloaded(LLMError):

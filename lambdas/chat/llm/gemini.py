@@ -6,7 +6,7 @@ import time
 import urllib.error
 import urllib.request
 
-from .base import LLMError, Message, Overloaded, RateLimited
+from .base import LLMError, LLMResult, Message, Overloaded, RateLimited
 
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
@@ -17,7 +17,7 @@ class GeminiClient:
             raise LLMError("Gemini 키 또는 모델명이 설정되지 않음")
         self.api_key, self.model, self.timeout, self.retries = api_key, model, timeout, retries
 
-    def generate(self, system: str, messages: list[Message], max_tokens: int = 800) -> str:
+    def generate(self, system: str, messages: list[Message], max_tokens: int = 800) -> LLMResult:
         # 503(과부하)·타임아웃은 일시적인 경우가 많아 짧게 쉬고 1회 재시도. 429(한도)는 재시도하지 않는다.
         for attempt in range(self.retries + 1):
             try:
@@ -28,7 +28,7 @@ class GeminiClient:
                 time.sleep(1.5)
         raise Overloaded("unreachable")
 
-    def _call(self, system: str, messages: list[Message], max_tokens: int) -> str:
+    def _call(self, system: str, messages: list[Message], max_tokens: int) -> LLMResult:
         body = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": m.role, "parts": [{"text": m.text}]} for m in messages],
@@ -64,4 +64,10 @@ class GeminiClient:
             raise LLMError(f"Gemini 응답 형식 오류: {str(data)[:200]}") from e
         if not text:
             raise LLMError("빈 응답 (안전 필터 등)")
-        return text
+        u = data.get("usageMetadata") or {}
+        return LLMResult(
+            text=text,
+            input_tokens=int(u.get("promptTokenCount", 0)),
+            # 생각(thinking) 토큰도 출력 요금으로 과금되므로 함께 센다
+            output_tokens=int(u.get("candidatesTokenCount", 0)) + int(u.get("thoughtsTokenCount", 0)),
+        )
