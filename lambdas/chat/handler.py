@@ -134,6 +134,9 @@ def handler(event, context):
     try:
         client = get_client(PROVIDER, param(KEY_PARAM, decrypt=True), param(MODEL_PARAM))
         answer = client.generate(system, [*history, Message("user", question)])
+    except ssm.exceptions.ParameterNotFound:
+        log.error(json.dumps({"event": "not_configured", "param": KEY_PARAM}))
+        return resp(503, {"error": "not_configured"})
     except RateLimited:
         return resp(429, {"error": "rate_limited"})
     except LLMError as e:

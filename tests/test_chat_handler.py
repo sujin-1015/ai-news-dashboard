@@ -31,6 +31,10 @@ def h(monkeypatch):
             self.n += 1
 
     class SSM:
+        class exceptions:
+            class ParameterNotFound(Exception):
+                pass
+
         def get_parameter(self, Name, WithDecryption=False):
             return {"Parameter": {"Value": {"/k": "secret", "/m": "gemini-test"}[Name]}}
 
@@ -90,3 +94,13 @@ def test_history_must_start_with_user(h):
     h.handler(ev({"question": "q", "history": hist}), None)
     _, msgs = h.FakeLLM.calls[-1]
     assert [m.role for m in msgs] == ["user", "model", "user"]
+
+
+def test_missing_key_returns_503(h, monkeypatch):
+    def missing(Name, WithDecryption=False):
+        raise h.ssm.exceptions.ParameterNotFound()
+
+    monkeypatch.setattr(h.ssm, "get_parameter", missing)
+    h._cache.clear()
+    r = h.handler(ev({"question": "q"}), None)
+    assert r["statusCode"] == 503 and json.loads(r["body"])["error"] == "not_configured"
