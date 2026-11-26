@@ -62,10 +62,11 @@ function renderContext() {
   const box = $("#chatContext");
   box.replaceChildren();
   if (!current) return;
-  box.append("📄 참고 기사: ", Object.assign(document.createElement("strong"), { textContent: current.title }));
+  box.append(Object.assign(document.createElement("span"), { className: "ctx-label", textContent: "참고 기사" }),
+    Object.assign(document.createElement("strong"), { textContent: current.title, title: current.title }));
   const x = Object.assign(document.createElement("button"), { className: "link-btn", textContent: "해제" });
   x.onclick = () => { current = null; renderContext(); };
-  box.append(" ", x);
+  box.append(x);
 }
 
 // 오늘 사용량 표시: 횟수 / 상한 · 토큰 · 예상 비용
@@ -164,5 +165,5 @@ export function initChat(config) {
   $("#chatInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#chatForm").requestSubmit(); }
   });
-  addMsg("bot", "안녕하세요! 기사 카드의 \"💬 이 기사 물어보기\"를 누르거나 기사를 연 뒤 모르는 용어를 물어보세요.");
+  addMsg("bot", "안녕하세요! 기사 목록의 \"AI에게 묻기\"를 누르거나 기사를 연 뒤 모르는 용어를 물어보세요.");
 }

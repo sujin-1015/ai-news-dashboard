@@ -25,6 +25,9 @@ const saveBookmarks = () => store.set("bookmarks", bookmarks);
 let all = [];
 let filtered = [];
 let shown = 0;
+let lastDay = ""; // 날짜 구분선용
+let dayCounts = new Map();
+let topCompanies = []; // [[이름, 건수]]
 const state = Object.assign(
   { industry: "", topic: "", company: "", source: "", period: "7", q: "", unreadOnly: false, bookmarkOnly: false },
   store.get("filters", {}),
@@ -54,6 +57,35 @@ function relTime(iso) {
   if (diff < 1440) return `${Math.floor(diff / 60)}시간 전`;
   const d = new Date(iso);
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// 1.6px 선 아이콘 (currentColor)
+const ICONS = {
+  bookmark: "M7 4h10v16l-5-3.6L7 20z",
+  memo: "M5 19h3.5L18.5 9 15 5.5 5 15.5zM13.5 7l3.5 3.5",
+  read: "M4.5 12.5l4.5 4.5 10-10",
+  why: "M5 7h14M5 12h9M5 17h5",
+  chat: "M4 5.5h16v10.5H10l-4.5 3.5V16H4z",
+  x: "M7 7l10 10M17 7 7 17",
+};
+function icon(name) {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("aria-hidden", "true");
+  const p = document.createElementNS(NS, "path"); p.setAttribute("d", ICONS[name]);
+  svg.append(p);
+  return svg;
+}
+
+const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+const dayOf = (a) => a.day || kstDay(new Date(a.publishedAt));
+function dayLabel(day) {
+  const [y, m, d] = day.split("-").map(Number);
+  const wd = WEEK[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  const md = `${m}월 ${d}일`;
+  if (day === kstDay(new Date())) return ["오늘", `${md} ${wd}요일`];
+  if (day === kstDay(new Date(Date.now() - 86400e3))) return ["어제", `${md} ${wd}요일`];
+  return [md, `${wd}요일`];
 }
 
 // ── 필터 ────────────────────────────────────────────────
@@ -94,8 +126,14 @@ function apply() {
   $("#count").textContent = `${filtered.length.toLocaleString()}건`;
   $("#list").replaceChildren();
   shown = 0;
+  lastDay = "";
+  dayCounts = new Map();
+  for (const a of filtered) { const d = dayOf(a); dayCounts.set(d, (dayCounts.get(d) || 0) + 1); }
   renderMore();
   $("#empty").hidden = filtered.length > 0;
+  $("#markAllBtn").disabled = filtered.length === 0;
+  renderActiveFilters();
+  renderTopCompanies();
 }
 
 // ── 렌더링 ──────────────────────────────────────────────
@@ -113,6 +151,8 @@ function renderTabs(base) {
 function badge(kind, value, onclick) {
   return el("button", { class: `badge ${kind}`, dataset: { v: value }, onclick, title: "이 분류로 필터" }, value);
 }
+const act = (cls, label, iconName, onclick, extra = {}, text = null) =>
+  el("button", { class: `act ${cls}`, "aria-label": label, title: label, onclick, ...extra }, icon(iconName), text ? el("span", {}, text) : null);
 
 function card(a) {
   const isRead = readSet.has(a.id);
@@ -128,27 +168,32 @@ function card(a) {
     ...Object.entries(a.why || {}).flatMap(([k, v]) => [el("code", {}, `${k} ← ${v.join(", ")}`), " "]),
     Object.keys(a.why || {}).length ? null : "매칭된 키워드 없음",
   );
+  const sep = () => el("i", { class: "dot-sep", "aria-hidden": "true" });
   appendAll(li,
-    el("h2", {}, el("a", { href: safeUrl(a.link), target: "_blank", rel: "noopener noreferrer", onclick: markRead, onauxclick: markRead }, a.title)),
     el("div", { class: "meta" },
-      el("span", {}, a.source),
-      el("time", { datetime: a.publishedAt, title: a.publishedAt }, relTime(a.publishedAt) + (a.dateGuessed ? " (추정)" : "")),
+      ...a.industries.map((v) => el("button", { class: "ind", dataset: { v }, title: `${v} 업종만 보기`, onclick: () => { state.industry = v; apply(); } }, v)),
+      a.industries.length ? sep() : null,
+      el("span", { class: "src" }, a.source),
+      sep(),
+      el("time", { datetime: a.publishedAt, title: a.publishedAt }, relTime(a.publishedAt)),
+      a.dateGuessed ? el("span", { class: "guess", title: "발행 시각이 없어 수집 시각으로 표시" }, "(추정)") : null,
     ),
+    el("h2", {}, el("a", { href: safeUrl(a.link), target: "_blank", rel: "noopener noreferrer", onclick: markRead, onauxclick: markRead }, a.title)),
     a.summary ? el("p", { class: "summary" }, a.summary) : null,
-    el("div", { class: "badges" },
-      ...a.industries.map((v) => badge("ind", v, () => { state.industry = v; apply(); })),
-      ...a.topics.map((v) => badge("tp", v, () => { state.topic = v; syncControls(); apply(); })),
-      ...a.companies.slice(0, 5).map((v) => badge("co", v, () => { state.company = v; syncControls(); apply(); })),
-    ),
     bm?.memo ? el("div", { class: "memo" }, bm.memo) : null,
     whyBox,
-    el("div", { class: "actions" },
-      el("button", { class: bm ? "on" : "", onclick: () => toggleBookmark(a), "aria-pressed": String(!!bm) }, bm ? "★ 저장됨" : "☆ 저장"),
-      el("button", { onclick: () => editMemo(a) }, "✎ 메모"),
-      el("button", { onclick: () => { readSet.has(a.id) ? readSet.delete(a.id) : readSet.add(a.id); saveRead(); li.classList.toggle("read"); } },
-        "◐ 읽음 전환"),
-      el("button", { onclick: () => { whyBox.hidden = !whyBox.hidden; } }, "🔍 분류 근거"),
-      el("button", { onclick: () => { setChatArticle(a, true); } }, "💬 이 기사 물어보기"),
+    el("div", { class: "card-foot" },
+      el("div", { class: "badges" },
+        ...a.companies.slice(0, 5).map((v) => badge("co", v, () => { state.company = v; syncControls(); apply(); })),
+        ...a.topics.map((v) => badge("tp", v, () => { state.topic = v; syncControls(); apply(); })),
+      ),
+      el("div", { class: "actions" },
+        act(`bm${bm ? " on" : ""}`, bm ? "북마크 해제" : "북마크", "bookmark", () => toggleBookmark(a), { "aria-pressed": String(!!bm) }),
+        act("", "메모", "memo", () => editMemo(a)),
+        act("", "읽음 전환", "read", () => { readSet.has(a.id) ? readSet.delete(a.id) : readSet.add(a.id); saveRead(); li.classList.toggle("read"); }),
+        act("", "분류 근거", "why", () => { whyBox.hidden = !whyBox.hidden; }),
+        act("ask", "이 기사 AI에게 묻기", "chat", () => { setChatArticle(a, true); }, {}, "AI에게 묻기"),
+      ),
     ),
   );
   return li;
@@ -156,8 +201,54 @@ function card(a) {
 
 function renderMore() {
   const next = filtered.slice(shown, shown + PAGE);
-  $("#list").append(...next.map(card));
+  const nodes = [];
+  for (const a of next) {
+    const d = dayOf(a);
+    if (d !== lastDay) {
+      const [title, sub] = dayLabel(d);
+      nodes.push(el("li", { class: "day-head", role: "presentation" }, title,
+        el("span", {}, sub), el("span", { class: "day-n" }, `${(dayCounts.get(d) || 0).toLocaleString()}건`)));
+      lastDay = d;
+    }
+    nodes.push(card(a));
+  }
+  $("#list").append(...nodes);
   shown += next.length;
+}
+
+// 적용된 필터를 칩으로 보여주고, ×로 하나씩 해제
+function renderActiveFilters() {
+  const items = [
+    ["industry", "업종", state.industry],
+    ["topic", "주제", state.topic],
+    ["company", "기업", state.company],
+    ["source", "매체", state.source],
+    ["q", "검색", state.q],
+    ["unreadOnly", "보기", state.unreadOnly && "안 읽은 글"],
+    ["bookmarkOnly", "보기", state.bookmarkOnly && "북마크"],
+  ].filter(([, , v]) => v);
+  const box = $("#activeFilters");
+  box.hidden = items.length === 0;
+  if (!items.length) { box.replaceChildren(); return; }
+  box.replaceChildren(
+    el("span", { class: "af-label" }, "적용된 필터"),
+    ...items.map(([k, label, v]) => el("button", {
+      class: "chip", title: "필터 해제", "aria-label": `${label} ${v} 필터 해제`,
+      onclick: () => { state[k] = typeof state[k] === "boolean" ? false : ""; syncControls(); apply(); },
+    }, `${label} `, el("b", {}, v), icon("x"))),
+    ...(items.length > 1 ? [el("button", { class: "link-btn af-clear", onclick: () => $("#resetBtn").click() }, "모두 해제")] : []),
+  );
+}
+
+function renderTopCompanies() {
+  if (!topCompanies.length) return;
+  $("#topCompaniesWrap").hidden = false;
+  $("#topCompanies").replaceChildren(...topCompanies.map(([v, n], i) => el("li", {},
+    el("button", {
+      "aria-pressed": String(state.company === v), title: state.company === v ? "선택 해제" : `${v} 기사만 보기`,
+      onclick: () => { state.company = state.company === v ? "" : v; syncControls(); apply(); },
+    }, el("span", { class: "rk" }, String(i + 1)), el("span", { class: "nm" }, v), el("span", { class: "ct" }, n.toLocaleString())),
+  )));
 }
 
 function rerenderCard(id) {
@@ -229,6 +320,17 @@ function bindControls() {
     const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = t; localStorage.setItem("theme", t);
   };
+  $("#filterToggle").onclick = () => {
+    const open = $("#sidebar").classList.toggle("open");
+    $("#filterToggle").setAttribute("aria-expanded", String(open));
+  };
+  document.querySelector("#empty [data-reset]")?.addEventListener("click", () => $("#resetBtn").click());
+  // "/" 로 검색창 포커스
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+    e.preventDefault(); $("#q").focus();
+  });
   new IntersectionObserver((es) => { if (es[0].isIntersecting && shown < filtered.length) renderMore(); }, { rootMargin: "400px" })
     .observe($("#sentinel"));
 }
@@ -248,13 +350,17 @@ async function main() {
     $("#feedHealth").textContent = ` · 수집 피드 ${snap.feeds.length - bad.length}/${snap.feeds.length} 정상`;
     if (bad.length) $("#feedHealth").title = bad.map((f) => `${f.name}: ${f.error}`).join("\n");
   } catch (e) {
+    $("#loading").hidden = true;
     $("#empty").hidden = false;
     $("#empty").textContent = "기사 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
     return;
   }
+  $("#loading").hidden = true;
   fillOptions($("#topic"), countBy((a) => a.topics), "주제 전체");
   fillOptions($("#source"), countBy((a) => [a.source]), "매체 전체");
-  $("#companyList").replaceChildren(...countBy((a) => a.companies).map(([v, n]) => el("option", { value: v }, `${n}건`)));
+  const companyCounts = countBy((a) => a.companies);
+  $("#companyList").replaceChildren(...companyCounts.map(([v, n]) => el("option", { value: v }, `${n}건`)));
+  topCompanies = companyCounts.slice(0, 8);
   syncControls();
   apply();
 }
