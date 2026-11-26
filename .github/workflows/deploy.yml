@@ -55,6 +55,7 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-${{ github.run_id }}
+          mask-aws-account-id: true  # 공개 저장소 로그에 계정 ID가 보이지 않게
 
       - name: 변경 미리보기 (cdk diff)
         working-directory: infra
