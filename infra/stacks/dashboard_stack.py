@@ -137,7 +137,7 @@ class DashboardStack(Stack):
         model_param = ssm.StringParameter(
             self, "GeminiModel",
             parameter_name="/ai-news/gemini-model",
-            string_value=ctx("geminiModel") or "gemini-3.6-flash",
+            string_value=ctx("geminiModel") or "gemini-3.5-flash-lite",
             description="Gemini model ID used by the chat Lambda (not hardcoded)",
         )
         chat = lambda_.Function(

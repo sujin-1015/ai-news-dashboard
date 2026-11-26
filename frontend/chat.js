@@ -43,6 +43,7 @@ const ERRORS = {
   rate_limited: "지금 질문이 몰려서 무료 한도에 걸렸어요. 1분쯤 뒤에 다시 시도해 주세요.",
   too_long: `질문은 ${MAX_INPUT}자 이내로 써 주세요.`,
   forbidden: "허용되지 않은 위치에서의 요청입니다.",
+  overloaded: "지금 AI 모델 사용자가 많아 응답이 늦어요. 잠시 후 다시 물어봐 주세요.",
   not_configured: "챗봇 API 키가 아직 설정되지 않았어요. (관리자: SSM 파라미터 확인)",
 };
 

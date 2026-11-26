@@ -12,7 +12,7 @@
     "windowDays": 7,
     "articleTtlDays": 180,
     "logRetentionDays": 14,
-    "geminiModel": "gemini-3.6-flash",
+    "geminiModel": "gemini-3.5-flash-lite",
     "geminiKeyParam": "/ai-news/gemini-api-key",
     "chatDailyLimit": 200,
     "chatRateLimitPerSec": 1,

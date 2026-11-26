@@ -104,3 +104,32 @@ def test_missing_key_returns_503(h, monkeypatch):
     h._cache.clear()
     r = h.handler(ev({"question": "q"}), None)
     assert r["statusCode"] == 503 and json.loads(r["body"])["error"] == "not_configured"
+
+
+def test_overloaded_maps_to_503(h, monkeypatch):
+    class Busy:
+        def generate(self, *a, **k):
+            raise h.Overloaded("503")
+
+    monkeypatch.setattr(h, "get_client", lambda p, k, m: Busy())
+    r = h.handler(ev({"question": "q"}), None)
+    assert r["statusCode"] == 503 and json.loads(r["body"])["error"] == "overloaded"
+
+
+def test_gemini_retries_once_on_overload(monkeypatch):
+    sys.path.insert(0, str(ROOT / "lambdas" / "chat"))
+    from llm import gemini
+    from llm.base import Message, Overloaded
+
+    calls = []
+    c = gemini.GeminiClient("k", "m")
+    monkeypatch.setattr(gemini.time, "sleep", lambda s: None)
+
+    def flaky(*a):
+        calls.append(1)
+        if len(calls) == 1:
+            raise Overloaded("503")
+        return "ok"
+
+    monkeypatch.setattr(c, "_call", flaky)
+    assert c.generate("s", [Message("user", "q")]) == "ok" and len(calls) == 2

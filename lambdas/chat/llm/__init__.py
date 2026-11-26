@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .base import LLMClient, LLMError, Message, RateLimited
+from .base import LLMClient, LLMError, Message, Overloaded, RateLimited
 
 
 def get_client(provider: str, api_key: str, model: str) -> LLMClient:
@@ -12,4 +12,4 @@ def get_client(provider: str, api_key: str, model: str) -> LLMClient:
     raise LLMError(f"지원하지 않는 LLM_PROVIDER: {provider}")
 
 
-__all__ = ["LLMClient", "LLMError", "Message", "RateLimited", "get_client"]
+__all__ = ["LLMClient", "LLMError", "Message", "Overloaded", "RateLimited", "get_client"]

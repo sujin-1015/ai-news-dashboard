@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 import boto3
 from botocore.exceptions import ClientError
 
-from llm import LLMError, Message, RateLimited, get_client
+from llm import LLMError, Message, Overloaded, RateLimited, get_client
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
@@ -139,6 +139,9 @@ def handler(event, context):
         return resp(503, {"error": "not_configured"})
     except RateLimited:
         return resp(429, {"error": "rate_limited"})
+    except Overloaded as e:
+        log.warning(json.dumps({"event": "llm_overloaded", "error": str(e)[:200]}, ensure_ascii=False))
+        return resp(503, {"error": "overloaded"})
     except LLMError as e:
         log.error(json.dumps({"event": "llm_error", "error": str(e)[:300]}, ensure_ascii=False))
         return resp(502, {"error": "llm_error"})

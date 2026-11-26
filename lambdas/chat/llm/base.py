@@ -25,3 +25,7 @@ class RateLimited(LLMError):
 
 class LLMClient(Protocol):
     def generate(self, system: str, messages: list[Message], max_tokens: int = 800) -> str: ...
+
+
+class Overloaded(LLMError):
+    """공급자 일시 과부하 (HTTP 503 / 타임아웃)."""
