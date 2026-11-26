@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AI 뉴스 대시보드</title>
   <meta name="description" content="국내 IT·AI 매체 RSS를 업종·주제·기업별로 분류한 개인 학습용 대시보드">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📰</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2316181b'/><rect x='8' y='9' width='16' height='2.5' fill='%23fff'/><rect x='8' y='15' width='10' height='2.5' fill='%2340b696'/><rect x='8' y='21' width='13' height='2.5' fill='%23fff'/></svg>">
   <link rel="stylesheet" href="styles.css">
   <script>
     // 첫 페인트 전에 테마 적용 (깜빡임 방지)
@@ -17,85 +17,152 @@
   </script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <h1>AI 뉴스 대시보드</h1>
-      <span id="updated" class="muted"></span>
-    </div>
-    <div class="top-actions">
-      <input id="q" type="search" placeholder="키워드 검색 (제목·요약)" aria-label="키워드 검색">
-      <button id="themeBtn" class="icon-btn" aria-label="다크모드 전환" title="다크모드 전환">🌓</button>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a class="brand" href="./" aria-label="AI 뉴스 대시보드 처음으로">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div class="brand-text">
+          <h1>AI 뉴스 대시보드</h1>
+          <span id="updated" class="brand-meta"></span>
+        </div>
+      </a>
+
+      <div class="search" role="search">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+        <input id="q" type="search" placeholder="제목·요약·기업명으로 검색" aria-label="키워드 검색" autocomplete="off" spellcheck="false">
+        <kbd class="search-kbd" aria-hidden="true">/</kbd>
+      </div>
+
+      <button id="themeBtn" class="icon-btn" aria-label="다크모드 전환" title="다크모드 전환">
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>
+      </button>
     </div>
   </header>
 
-  <nav class="filters" aria-label="필터">
-    <div class="tabs" id="industryTabs" role="tablist" aria-label="업종"></div>
-
-    <div class="filter-row">
-      <select id="topic" aria-label="주제"><option value="">주제 전체</option></select>
-      <div class="combo">
-        <input id="company" list="companyList" placeholder="기업 검색" aria-label="기업 검색">
-        <datalist id="companyList"></datalist>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar" aria-label="필터">
+      <div class="field">
+        <label class="field-label" for="period">기간</label>
+        <select id="period">
+          <option value="today">오늘</option>
+          <option value="yesterday">어제</option>
+          <option value="3">최근 3일</option>
+          <option value="7" selected>최근 7일</option>
+        </select>
       </div>
-      <select id="source" aria-label="매체"><option value="">매체 전체</option></select>
-      <select id="period" aria-label="기간">
-        <option value="today">오늘</option>
-        <option value="yesterday">어제</option>
-        <option value="3">최근 3일</option>
-        <option value="7" selected>최근 7일</option>
-      </select>
-    </div>
 
-    <div class="filter-row toggles">
-      <label class="switch"><input type="checkbox" id="unreadOnly"> 안 읽은 글만</label>
-      <label class="switch"><input type="checkbox" id="bookmarkOnly"> 북마크만</label>
-      <button id="resetBtn" class="link-btn">필터 초기화</button>
-      <button id="markAllBtn" class="link-btn">보이는 글 모두 읽음</button>
-      <span id="count" class="muted"></span>
-    </div>
-  </nav>
+      <div class="field">
+        <label class="field-label" for="topic">주제</label>
+        <select id="topic"><option value="">주제 전체</option></select>
+      </div>
 
-  <main>
-    <ul id="list" class="cards" aria-live="polite"></ul>
-    <div id="sentinel"></div>
-    <p id="empty" class="empty" hidden>조건에 맞는 기사가 없습니다.</p>
-  </main>
+      <div class="field">
+        <label class="field-label" for="company">기업</label>
+        <div class="combo">
+          <svg class="combo-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+          <input id="company" list="companyList" placeholder="기업명 입력" autocomplete="off">
+          <datalist id="companyList"></datalist>
+        </div>
+        <div class="field-sub" id="topCompaniesWrap" hidden>
+          <span class="field-hint">기사가 많은 기업</span>
+          <ol id="topCompanies" class="rank"></ol>
+        </div>
+      </div>
 
-  <footer class="footer muted">
-    기사 저작권은 각 언론사에 있으며, 제목·짧은 요약·원문 링크만 표시합니다. 원문은 링크로 확인하세요.
-    <span id="feedHealth"></span>
-  </footer>
+      <div class="field">
+        <label class="field-label" for="source">매체</label>
+        <select id="source"><option value="">매체 전체</option></select>
+      </div>
+
+      <fieldset class="field">
+        <legend class="field-label">보기</legend>
+        <label class="check"><input type="checkbox" id="unreadOnly"><span>안 읽은 글만</span></label>
+        <label class="check"><input type="checkbox" id="bookmarkOnly"><span>북마크만</span></label>
+      </fieldset>
+
+      <div class="sidebar-actions">
+        <button id="resetBtn" class="btn btn-ghost btn-sm">필터 초기화</button>
+        <button id="markAllBtn" class="btn btn-ghost btn-sm">보이는 글 모두 읽음</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="list-head">
+        <div class="tabs" id="industryTabs" role="tablist" aria-label="업종"></div>
+        <div class="list-head-side">
+          <span id="count" class="count"></span>
+          <button id="filterToggle" class="btn btn-secondary btn-sm filter-toggle" aria-controls="sidebar" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>필터
+          </button>
+        </div>
+      </div>
+
+      <div id="activeFilters" class="active-filters" aria-label="적용된 필터" hidden></div>
+
+      <div id="loading" class="loading" aria-label="기사를 불러오는 중">
+        <div class="sk-row"><i class="sk sk-meta"></i><i class="sk sk-title"></i><i class="sk sk-line"></i></div>
+        <div class="sk-row"><i class="sk sk-meta"></i><i class="sk sk-title w2"></i><i class="sk sk-line"></i></div>
+        <div class="sk-row"><i class="sk sk-meta"></i><i class="sk sk-title"></i><i class="sk sk-line w3"></i></div>
+        <div class="sk-row"><i class="sk sk-meta"></i><i class="sk sk-title w2"></i><i class="sk sk-line"></i></div>
+        <div class="sk-row"><i class="sk sk-meta"></i><i class="sk sk-title"></i><i class="sk sk-line w3"></i></div>
+      </div>
+
+      <ul id="list" class="feed" aria-live="polite"></ul>
+      <div id="sentinel"></div>
+      <div id="empty" class="empty" hidden>
+        <p class="empty-title">조건에 맞는 기사가 없습니다</p>
+        <p class="empty-desc">기간을 넓히거나 일부 필터를 해제해 보세요.</p>
+        <button type="button" class="btn btn-secondary btn-sm" data-reset>필터 초기화</button>
+      </div>
+
+      <footer class="footer">
+        기사 저작권은 각 언론사에 있으며, 제목·짧은 요약·원문 링크만 표시합니다. 원문은 링크로 확인하세요.
+        <span id="feedHealth"></span>
+      </footer>
+    </main>
+  </div>
 
   <!-- 메모 편집 -->
   <dialog id="memoDialog">
     <form method="dialog">
+      <p class="dialog-eyebrow">메모</p>
       <h3 id="memoTitle"></h3>
       <textarea id="memoText" rows="5" maxlength="2000" placeholder="메모 (이 기기에만 저장됩니다)"></textarea>
-      <menu><button value="cancel">취소</button><button value="save" class="primary">저장</button></menu>
+      <menu><button value="cancel" class="btn btn-secondary">취소</button><button value="save" class="btn btn-primary">저장</button></menu>
     </form>
   </dialog>
 
   <!-- 챗봇 -->
-  <button id="chatFab" class="chat-fab" aria-label="학습 도우미 열기">💬</button>
+  <button id="chatFab" class="chat-fab" aria-label="학습 도우미 열기">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4z"/></svg>
+    <span>학습 도우미</span>
+  </button>
   <section id="chatPanel" class="chat-panel" hidden aria-label="학습 도우미">
     <header>
-      <strong>학습 도우미</strong>
-      <span class="muted small">모르는 용어·배경을 물어보세요</span>
-      <button id="chatSettingsBtn" class="icon-btn" aria-label="설정">⚙️</button>
-      <button id="chatClose" class="icon-btn" aria-label="닫기">✕</button>
+      <div class="chat-title">
+        <strong>학습 도우미</strong>
+        <span class="chat-sub">모르는 용어·배경을 물어보세요</span>
+      </div>
+      <button id="chatSettingsBtn" class="icon-btn icon-btn-sm" aria-label="설정" title="설정">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+      </button>
+      <button id="chatClose" class="icon-btn icon-btn-sm" aria-label="닫기" title="닫기">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
     </header>
     <div id="chatSettings" class="chat-settings" hidden>
-      <label class="switch"><input type="checkbox" id="sendSummary"> 기사 요약도 함께 보내기 (기본: 제목·링크만)</label>
-      <p class="small muted">⚠ Gemini 무료 티어로 동작합니다. 무료 티어 입력은 구글 제품 개선에 사용될 수 있으니 개인정보를 입력하지 마세요.</p>
-      <button id="chatClear" class="link-btn">대화 지우기</button>
+      <label class="check"><input type="checkbox" id="sendSummary"><span>기사 요약도 함께 보내기 (기본: 제목·링크만)</span></label>
+      <p class="chat-note">Gemini 무료 티어로 동작합니다. 무료 티어 입력은 구글 제품 개선에 사용될 수 있으니 개인정보를 입력하지 마세요.</p>
+      <button id="chatClear" class="btn btn-ghost btn-sm">대화 지우기</button>
     </div>
     <div id="chatContext" class="chat-context"></div>
     <div id="chatLog" class="chat-log"></div>
     <form id="chatForm" class="chat-form">
       <textarea id="chatInput" rows="2" maxlength="1000" placeholder="예: 이 기사에 나온 HBM이 뭐야?"></textarea>
-      <button class="primary" id="chatSend">보내기</button>
+      <button class="btn btn-primary" id="chatSend">보내기</button>
     </form>
-    <div id="chatUsage" class="chat-usage small muted" title="오늘(KST) 전체 사용량 · 질문마다 실시간 갱신"></div>
+    <div id="chatUsage" class="chat-usage" title="오늘(KST) 전체 사용량 · 질문마다 실시간 갱신"></div>
   </section>
 
   <script src="app.js" type="module"></script>
