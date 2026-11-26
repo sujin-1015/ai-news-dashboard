@@ -10,6 +10,45 @@ let current = null; // 현재 기사
 let history = []; // [{role: "user"|"model", text}]
 let busy = false;
 
+// 모델 응답의 간단한 마크다운(**굵게**, `코드`, 목록, 인용, 제목)만 표시.
+// innerHTML을 쓰지 않고 DOM 노드를 직접 만들어서 응답에 HTML이 섞여 있어도 실행되지 않는다(XSS 안전).
+function inline(parent, text) {
+  const re = /(\*\*[^*\n]+\*\*|`[^`\n]+`)/g;
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) parent.append(text.slice(last, m.index));
+    const tok = m[0];
+    const el = document.createElement(tok.startsWith("**") ? "strong" : "code");
+    el.textContent = tok.startsWith("**") ? tok.slice(2, -2) : tok.slice(1, -1);
+    parent.append(el);
+    last = m.index + tok.length;
+  }
+  if (last < text.length) parent.append(text.slice(last));
+}
+
+export function renderMarkdown(container, text) {
+  container.replaceChildren();
+  let list = null;
+  for (const raw of text.replace(/\r/g, "").split("\n")) {
+    const line = raw.trimEnd();
+    const bullet = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
+    if (bullet) {
+      const tag = /^\s*\d/.test(line) ? "OL" : "UL";
+      if (!list || list.tagName !== tag) { list = document.createElement(tag); container.append(list); }
+      const li = document.createElement("li"); inline(li, bullet[1]); list.append(li);
+      continue;
+    }
+    list = null;
+    if (!line.trim()) continue;
+    let el;
+    const quote = line.match(/^>\s?(.*)$/), head = line.match(/^#{1,6}\s+(.*)$/);
+    if (quote) { el = document.createElement("blockquote"); inline(el, quote[1]); }
+    else if (head) { el = document.createElement("p"); const b = document.createElement("strong"); b.textContent = head[1].replace(/\*\*/g, ""); el.append(b); }
+    else { el = document.createElement("p"); inline(el, line); }
+    container.append(el);
+  }
+}
+
 function addMsg(kind, text) {
   const d = document.createElement("div");
   d.className = `msg ${kind}`;
@@ -71,7 +110,8 @@ async function send(question) {
       pending.textContent = ERRORS[data.error] || (res.status === 429 ? ERRORS.rate_limited : "답변을 받지 못했어요. 잠시 후 다시 시도해 주세요.");
       return;
     }
-    pending.textContent = data.answer;
+    pending.classList.add("md");
+    renderMarkdown(pending, data.answer);
     history.push({ role: "user", text: question }, { role: "model", text: data.answer });
   } catch {
     pending.className = "msg err";

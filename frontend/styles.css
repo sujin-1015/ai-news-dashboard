@@ -98,6 +98,11 @@ dialog menu button { border: 1px solid var(--line); background: none; border-rad
 .msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
 [data-theme="dark"] .msg.user { color: #0f1216; }
 .msg.bot { align-self: flex-start; background: var(--accent-soft); }
+.msg.md { white-space: normal; }
+.msg.md p { margin: 0 0 6px; } .msg.md p:last-child { margin-bottom: 0; }
+.msg.md ul, .msg.md ol { margin: 2px 0 6px; padding-left: 18px; }
+.msg.md blockquote { margin: 4px 0 6px; padding: 4px 8px; border-left: 3px solid var(--accent); background: var(--card); border-radius: 4px; }
+.msg.md code { background: var(--card); padding: 0 4px; border-radius: 4px; font-size: 13px; }
 .msg.err { align-self: center; background: none; color: var(--muted); font-size: 13px; text-align: center; }
 .chat-form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
 .chat-form textarea { flex: 1; resize: none; }
@@ -110,4 +115,8 @@ dialog menu button { border: 1px solid var(--line); background: none; border-rad
   #count { margin-left: 0; width: 100%; }
   .chat-panel { right: 12px; left: 12px; width: auto; bottom: 84px; height: 70vh; }
   .chat-fab { right: 14px; bottom: 14px; }
+}
+@media (max-width: 420px) {
+  .chat-panel > header .muted { display: none; }
+  .chat-panel > header strong { flex: 1; }
 }
