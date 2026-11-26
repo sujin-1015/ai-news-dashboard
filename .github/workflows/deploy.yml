@@ -31,7 +31,8 @@ jobs:
 
   deploy:
     needs: test
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # 배포 역할(ARN)을 등록하기 전에는 테스트만 돌고 배포는 건너뛴다
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AWS_DEPLOY_ROLE_ARN != ''
     runs-on: ubuntu-latest
     environment: production  # (선택) 저장소 설정에서 승인 규칙을 걸 수 있다
     permissions:

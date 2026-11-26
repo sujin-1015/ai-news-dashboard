@@ -5,7 +5,7 @@
     "region": "ap-northeast-2",
     "alertEmail": "",
     "budgetLimitsUsd": [1, 5],
-    "githubRepo": "",
+    "githubRepo": "sujin-1015/ai-news-dashboard",
     "githubBranch": "main",
     "collectEveryMinutes": 60,
     "windowDays": 7,
