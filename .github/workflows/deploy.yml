@@ -2,6 +2,7 @@
 # - AWS 장기 액세스 키를 저장소에 두지 않는다. GitHub OIDC 토큰으로 IAM 역할을 assume (임시 자격 증명 1시간).
 # - 필요한 설정 (Settings → Secrets and variables → Actions)
 #     Variables: AWS_DEPLOY_ROLE_ARN  (AiNewsGithubOidc 스택 출력값)
+#     Secrets:   AWS_DEPLOY_ROLE_ARN  (같은 값. 로그 마스킹용으로 실제 assume에는 이 값을 쓴다)
 #     Secrets:   ALERT_EMAIL          (예산 알림 메일, 로그에 마스킹됨)
 name: test-and-deploy
 
@@ -50,17 +51,13 @@ jobs:
       - run: pip install -r infra/requirements.txt
       - run: npm ci
 
-      # 공개 저장소의 Actions 로그는 누구나 볼 수 있다. 계정 ID는 Variable이라 자동 마스킹되지 않고,
-      # 아래 단계의 입력값(role-to-assume)이 로그에 그대로 찍히므로 미리 마스킹한다.
-      - name: 로그 마스킹 (계정 ID)
-        env: { ROLE_ARN: "${{ vars.AWS_DEPLOY_ROLE_ARN }}" }
-        run: |
-          echo "::add-mask::$(echo "$ROLE_ARN" | cut -d: -f5)"
-
+      # 공개 저장소의 Actions 로그는 누구나 볼 수 있다. 단계 입력값은 로그에 찍히므로
+      # 계정 ID가 든 역할 ARN은 Secret으로 넘긴다 (Secret은 자동 마스킹).
+      # Variable AWS_DEPLOY_ROLE_ARN은 위 job의 if(배포 여부 판단)에만 쓴다.
       - name: AWS 자격 증명 (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-${{ github.run_id }}
           mask-aws-account-id: true  # 공개 저장소 로그에 계정 ID가 보이지 않게

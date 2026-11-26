@@ -209,6 +209,7 @@ aws lambda invoke --function-name <CollectorFunctionName 출력값> --profile ai
 2. 로컬에서 한 번: `npx cdk deploy AiNewsGithubOidc` → 출력값 `DeployRoleArn` 복사
 3. GitHub 저장소 → Settings → Secrets and variables → Actions
    - Variables: `AWS_DEPLOY_ROLE_ARN` = 위 ARN
+   - Secrets: `AWS_DEPLOY_ROLE_ARN` = 같은 ARN (공개 로그에 계정 ID가 찍히지 않도록 실제 배포에는 Secret 값을 사용)
    - Secrets: `ALERT_EMAIL` = 예산 알림 메일
 4. `main`에 푸시하면 test → cdk diff → cdk deploy가 실행된다.
 
