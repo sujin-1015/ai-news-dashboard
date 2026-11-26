@@ -17,7 +17,8 @@ GITHUB_OIDC_URL = "https://token.actions.githubusercontent.com"
 
 
 class GithubOidcStack(Stack):
-    def __init__(self, scope: Construct, cid: str, *, repo: str, branch: str = "main", **kw) -> None:
+    def __init__(self, scope: Construct, cid: str, *, repo: str, branch: str = "main",
+                 sub_prefix: str | None = None, **kw) -> None:
         super().__init__(scope, cid, **kw)
         provider = iam.OidcProviderNative(
             self, "GithubOidc",
@@ -34,7 +35,10 @@ class GithubOidcStack(Stack):
                 conditions={
                     "StringEquals": {
                         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-                        "token.actions.githubusercontent.com:sub": f"repo:{repo}:ref:refs/heads/{branch}",
+                        # GitHub의 불변 subject 형식이면 "repo:소유자@ID/저장소@ID" (저장소 이름을 바꾸거나
+                        # 같은 이름으로 다시 만든 저장소가 역할을 가로채지 못함). 확인:
+                        #   gh api repos/<owner>/<repo>/actions/oidc/customization/sub  → sub_claim_prefix
+                        "token.actions.githubusercontent.com:sub": f"{sub_prefix or 'repo:' + repo}:ref:refs/heads/{branch}",
                     }
                 },
             ),

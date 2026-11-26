@@ -7,6 +7,7 @@
     "budgetLimitsUsd": [1, 5],
     "githubRepo": "sujin-1015/ai-news-dashboard",
     "githubBranch": "main",
+    "githubSubPrefix": "repo:sujin-1015@310905106/ai-news-dashboard@1472982399",
     "collectEveryMinutes": 60,
     "windowDays": 7,
     "articleTtlDays": 180,

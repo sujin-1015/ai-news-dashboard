@@ -55,7 +55,8 @@ DashboardStack(app, "AiNewsDashboard", env=env, assets=assets, frontend_dir=ROOT
 repo = app.node.try_get_context("githubRepo")
 if repo:
     GithubOidcStack(app, "AiNewsGithubOidc", env=env, repo=repo,
-                    branch=app.node.try_get_context("githubBranch") or "main")
+                    branch=app.node.try_get_context("githubBranch") or "main",
+                    sub_prefix=app.node.try_get_context("githubSubPrefix") or None)
 
 cdk.Tags.of(app).add("project", "ai-news-dashboard")
 app.synth()
