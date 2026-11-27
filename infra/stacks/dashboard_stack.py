@@ -121,7 +121,8 @@ class DashboardStack(Stack):
             handler="collector_handler.handler",
             code=lambda_.Code.from_asset(str(assets["collector"])),
             memory_size=512,
-            timeout=Duration.minutes(2),
+            # 새 기사 본문 수집(사이트별 1초 간격, 최대 BODY_BUDGET_SECONDS) + 분류·묶기 → 여유 있게 5분
+            timeout=Duration.minutes(5),
             log_group=log_group("Collector"),
             environment={
                 "ARTICLES_TABLE": articles.table_name,
@@ -129,6 +130,8 @@ class DashboardStack(Stack):
                 "SNAPSHOT_KEY": "data/articles.json",
                 "WINDOW_DAYS": str(ctx("windowDays") or 7),
                 "TTL_DAYS": str(ctx("articleTtlDays") or 180),
+                "FETCH_BODIES": "1",  # 새 기사는 본문을 받아 본문 전체에서 요약 (본문은 저장 안 함)
+                "BODY_BUDGET_SECONDS": "150",
             },
         )
         # 최소 권한: 필요한 동작만

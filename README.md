@@ -1,11 +1,13 @@
 # AI 뉴스 대시보드 (AWS 서버리스)
 
-국내 IT·AI 매체와 정부·공공기관 RSS 48개를 **매시간** 모아 **업종 / 주제 / 기업**별로 분류해 보여주는 개인 학습용 대시보드.
+국내 IT·AI 매체와 정부·공공기관 RSS 47개를 **매시간** 모아 **업종 / 주제 / 기업**별로 분류해 보여주는 개인 학습용 대시보드.
 AI 직무 준비 과정에서 "AWS 서비스를 직접 설계하고, 코드(IaC)로 배포하고, CI/CD까지 구성했다"는 것을 보여주기 위한 포트폴리오 프로젝트입니다.
 
 - 서버 관리 없음 (Lambda + S3 + CloudFront + DynamoDB), VPC·NAT 없음, **월 약 $0.1 이하**
 - 인프라 전체를 **AWS CDK(Python)** 로 정의, **GitHub Actions + OIDC** 로 키 없이 배포
 - 분류는 **키워드 규칙 기반**(LLM 호출 없음), 분류 근거를 함께 저장해 오분류를 추적
+- 요약은 **기사 본문 전체에서 핵심 문장 3개를 고르는 추출 요약**(TF-IDF TextRank + 제목·위치 가중치 + MMR, LLM 없음). 본문은 요약에만 쓰고 저장하지 않음
+- 여러 매체의 같은 기사는 **제목 유사도로 한 카드로 묶고**, 기사 제목에서 뽑은 **핵심 이슈 순위**를 표시
 - 우측 하단 **학습 도우미 챗봇**: 보고 있는 기사의 용어·배경을 Gemini(무료 티어)로 설명
 
 ---
@@ -20,7 +22,7 @@ flowchart LR
   ROLE -- cdk deploy --> CFN[CloudFormation]
 
   SCH[EventBridge Scheduler<br/>60분마다] --> COL[Lambda: collector<br/>Python 3.13 · arm64]
-  COL -- 병렬 HTTP --> RSS[(RSS 48개)]
+  COL -- 병렬 HTTP --> RSS[(RSS 47개)]
   COL -- 신규 기사만<br/>조건부 쓰기 --> DDB[(DynamoDB Articles<br/>on-demand · TTL 180일)]
   COL -- data/articles.json --> S3[(S3 버킷<br/>퍼블릭 차단)]
 

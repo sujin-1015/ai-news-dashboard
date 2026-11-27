@@ -49,7 +49,7 @@ feeds:
   - { id: insweek,      name: 보험신보,        kind: media, url: "https://www.insweek.co.kr/rss/allArticle.xml" }
   - { id: newsis_bank,  name: 뉴시스,          kind: media, url: "https://www.newsis.com/RSS/bank.xml" }
   # ── 종합지 경제·산업 섹션 ────────────────────────
-  - { id: chosun_econ,  name: 조선일보,        kind: media, url: "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml" }
+  # 조선일보(경제): 기사 본문이 HTML에 없어(브라우저에서 그림) 전문 요약 불가 → 목록에서 제외 (2026-11-28)
   - { id: donga_it,     name: 동아일보,        kind: media, url: "https://rss.donga.com/science.xml" }
   - { id: donga_econ,   name: 동아일보,        kind: media, url: "https://rss.donga.com/economy.xml" }
   - { id: khan_econ,    name: 경향신문,        kind: media, url: "https://www.khan.co.kr/rss/rssdata/economy_news.xml" }

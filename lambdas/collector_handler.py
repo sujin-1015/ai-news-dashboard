@@ -5,7 +5,7 @@ AWS 입출력만 담당하고, 수집·분류 로직은 collector 패키지(순�
 흐름
 1. S3의 직전 스냅샷(data/articles.json)을 읽어 이미 본 기사 id 집합을 만든다.
    (스냅샷이 없으면 DynamoDB GSI byDay로 최근 N일을 조회해 복구)
-2. 피드 병렬 수집 → 신규 기사만 남김
+2. 피드 병렬 수집 → 신규 기사만 남김 → 신규 기사는 본문을 받아 본문 전체에서 요약 (본문은 저장 안 함)
 3. 신규 기사만 DynamoDB에 조건부 쓰기 (같은 id가 있으면 건너뜀 = DB 수준 중복 방지)
 4. 스냅샷 병합 후 S3에 덮어쓰기. 단, 피드 성공률이 낮으면 덮어쓰지 않는다(빈 화면 방지).
 """
@@ -22,6 +22,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
+from collector import body as article_body
 from collector import snapshot
 from collector.classify import Classifier
 from collector.config import load_all
@@ -37,6 +38,8 @@ SNAPSHOT_KEY = os.environ.get("SNAPSHOT_KEY", "data/articles.json")
 WINDOW_DAYS = int(os.environ.get("WINDOW_DAYS", "7"))
 TTL_DAYS = int(os.environ.get("TTL_DAYS", "180"))
 MIN_SUCCESS = float(os.environ.get("MIN_SUCCESS_RATIO", "0.5"))
+FETCH_BODIES = os.environ.get("FETCH_BODIES", "1") == "1"  # 새 기사 본문으로 요약 (끄면 RSS 소개글 요약)
+BODY_BUDGET_S = int(os.environ.get("BODY_BUDGET_SECONDS", "150"))  # 본문 수집에 쓸 최대 시간
 CONFIG_DIR = Path(__file__).parent / "config"
 
 s3 = boto3.client("s3")
@@ -104,7 +107,12 @@ def handler(event, context):
         previous = rebuild_from_db(now)
     known = {a["id"] for a in previous}
 
-    res = collect(_cfg["feeds"]["feeds"], _clf, now, known_ids=known, max_age_days=WINDOW_DAYS)
+    fetcher = None
+    if FETCH_BODIES:
+        def fetcher(arts):
+            # 시간 예산을 넘기면 남은 기사는 RSS 요약으로 두고 다음 수집에서 새 기사부터 처리
+            return article_body.fetch_bodies(arts, deadline=time.monotonic() + BODY_BUDGET_S)
+    res = collect(_cfg["feeds"]["feeds"], _clf, now, known_ids=known, max_age_days=WINDOW_DAYS, body_fetcher=fetcher)
     for s in res.statuses:
         if not s.ok:
             jlog("feed_failed", feed=s.id, error=s.error, ms=s.elapsed_ms)
@@ -118,6 +126,7 @@ def handler(event, context):
         "new": len(res.articles),
         "written": written,
         "skipped_known": res.skipped_known,
+        "body_summaries": res.body_summaries,
     }
 
     if res.success_ratio < MIN_SUCCESS:
@@ -125,6 +134,7 @@ def handler(event, context):
         return {"ok": False, **summary}
 
     merged = snapshot.merge(previous, res.articles, now, WINDOW_DAYS)
+    summary["clusters"] = snapshot.enrich(merged, _clf.company_terms())
     body = snapshot.build(merged, res.statuses, now, WINDOW_DAYS, _clf.topic_groups)
     s3.put_object(
         Bucket=BUCKET,
