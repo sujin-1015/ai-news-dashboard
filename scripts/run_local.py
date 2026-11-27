@@ -56,6 +56,10 @@ def main() -> None:
             if not s.ok:
                 print(f"  ✗ {s.id}: {s.error}")
 
+    n_clusters = snapshot.enrich(arts, clf.company_terms())
+    grouped = sum(1 for a in arts if a.get("cluster"))
+    print(f"비슷한 기사 묶음 {n_clusters}개 (기사 {grouped}건 → 화면 카드 {len(arts) - grouped + n_clusters}개)")
+
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(
         json.dumps(snapshot.build(arts, statuses, now, args.days, clf.topic_groups), ensure_ascii=False),

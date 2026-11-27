@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from .classify import Classifier
 from .fetch import FetchResult, fetch_all
 from .parse import KST, article_id, clean_text, parse_date, parse_feed, truncate
+from .summarize import clean_description, summarize
 
 
 @dataclass
@@ -37,9 +38,11 @@ def build_article(item, feed: dict, clf: Classifier, now: datetime) -> dict | No
     link = item.link.strip()
     if not title or not link.startswith(("http://", "https://")):
         return None
-    summary = truncate(clean_text(item.summary_raw))
+    desc = clean_text(item.summary_raw)
+    summary = summarize(title, desc)
     published, guessed = parse_date(item.published, now)
-    c = clf.classify(title, summary, feed.get("kind", "media"))
+    # 분류는 요약(고른 1~2문장)이 아니라 정리한 소개글 앞부분으로 (기존과 같은 범위)
+    c = clf.classify(title, truncate(clean_description(desc)), feed.get("kind", "media"))
     pub_kst = published.astimezone(KST)
     art = {
         "id": article_id(link),

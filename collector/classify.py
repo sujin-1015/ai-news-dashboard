@@ -66,6 +66,10 @@ class Classifier:
         ]
         self.topic_groups = {r.label: r.group for r in self.topics}
 
+    def company_terms(self) -> set[str]:
+        """기업 이름과 별칭 전부 (키워드 순위에서 뺄 때 쓴다)."""
+        return {r.label for r in self.companies} | {t for r in self.companies for t, _ in r.patterns}
+
     def classify(self, title: str, summary: str, feed_kind: str = "media") -> Classification:
         text = f"{title}\n{summary}"
         why: dict[str, list[str]] = {}

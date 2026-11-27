@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime, timedelta
 
+from . import cluster, keywords
 from .parse import KST
 
 SCHEMA_VERSION = 1
@@ -18,6 +19,13 @@ def merge(previous: list[dict], new: list[dict], now: datetime, window_days: int
     kept = [a for a in by_id.values() if datetime.fromisoformat(a["publishedAt"]) >= cutoff]
     kept.sort(key=lambda a: a["publishedAt"], reverse=True)
     return kept
+
+
+def enrich(articles: list[dict], company_terms: set[str]) -> int:
+    """스냅샷 전체 기준으로 비슷한 기사 묶음과 이슈 키워드를 다시 계산한다 (매 수집마다).
+    반환: 2건 이상 묶음 수."""
+    keywords.annotate(articles, company_terms)
+    return cluster.assign(articles)
 
 
 def build(articles: list[dict], statuses: list, now: datetime, window_days: int, topic_groups: dict) -> dict:

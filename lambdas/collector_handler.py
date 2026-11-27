@@ -125,6 +125,7 @@ def handler(event, context):
         return {"ok": False, **summary}
 
     merged = snapshot.merge(previous, res.articles, now, WINDOW_DAYS)
+    summary["clusters"] = snapshot.enrich(merged, _clf.company_terms())
     body = snapshot.build(merged, res.statuses, now, WINDOW_DAYS, _clf.topic_groups)
     s3.put_object(
         Bucket=BUCKET,
