@@ -93,3 +93,34 @@ def test_sentence_with_glued_subhead_is_avoided():
            "미국 록스타게임스가 19일 출시한 신작 게임에 전 세계가 들썩이고 있다.")
     out = summarize("신작 게임 출시 첫날 5조 매출", raw, max_sentences=1)
     assert "…" not in out
+
+
+# ── 본문 요약 ───────────────────────────────────────────────────────
+from collector.summarize import BODY_LIMIT, Idf, content_tokens, summarize_body  # noqa: E402
+
+BODY = """해외 IP 통해 등기우편물 고객 정보 조회
+인터넷우체국이 해외 IP 주소를 이용한 해킹 공격을 받아 고객 개인정보가 유출된 것으로 확인됐다.
+과학기술정보통신부 우정사업본부는 외부의 불법적인 해킹 공격으로 우편물 접수 정보가 유출된 사실을 확인했다고 27일 밝혔다.
+해커들은 모바일 인터넷우체국의 수취인 배달장소 변경서비스에 접근한 것으로 파악됐다.
+현재까지 분석이 이뤄진 하루 분량의 개인정보 유출 고객은 총 11만3855명으로 확인됐다.
+우정사업본부는 해당 서비스를 중단하고 해외 IP 접속을 전면 차단했다.
+우정사업본부는 경찰에 수사를 의뢰하고 2차 피해 예방에 나섰다.
+김지웅 기자 abc@example.com"""
+IDF = Idf(["인터넷우체국 해킹 개인정보 유출", "삼성전자 반도체 투자", "정부 예산 심사", "LG유플러스 5G 실증"] * 5)
+
+
+def test_content_tokens_strip_particles():
+    assert content_tokens("우정사업본부는 경찰에 수사를 의뢰했다") == ["우정사업본부", "경찰", "수사", "의뢰했다"]
+
+
+def test_body_summary_picks_from_whole_article():
+    out = summarize_body("인터넷우체국 해킹…하루치만 11.3만명 개인정보 유출", BODY, IDF)
+    assert 0 < len(out) <= BODY_LIMIT and out.endswith(".")
+    assert "해외 IP 통해" not in out  # 마침표 없는 소제목 줄은 빠진다
+    assert "@" not in out
+    picked = [s for s in BODY.splitlines() if s in out]
+    assert 2 <= len(picked) <= 3
+
+
+def test_body_summary_empty_when_too_few_sentences():
+    assert summarize_body("제목", "한 문장뿐인 본문이다.\n두 번째 문장이다.", IDF) == ""

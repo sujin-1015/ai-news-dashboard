@@ -1,0 +1,4 @@
+# 수집 Lambda에 함께 묶을 패키지 (infra/app.py가 arm64·Python 3.13용 휠로 설치)
+trafilatura==2.4.0   # 기사 페이지에서 본문만 추출
+# Lambda 런타임의 botocore가 python-dateutil 2.x를 요구 → 3 이상이 묶이면 boto3가 깨진다
+python-dateutil>=2.8,<3

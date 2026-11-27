@@ -2,6 +2,7 @@
 
     python scripts/run_local.py            # 실제 RSS 수집 → frontend/data/articles.json + out/report.md
     python scripts/run_local.py --offline  # 마지막 수집 결과를 재분류만 (사전 수정 후 빠른 확인)
+    python scripts/run_local.py --bodies   # 기사 본문까지 받아 본문 전체에서 요약 (기사 수만큼 요청, 수 분 걸림)
 
 AWS 없이 동작한다 (collector 순수 모듈만 사용).
 """
@@ -32,6 +33,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--offline", action="store_true", help="기존 articles.json을 재분류만")
     ap.add_argument("--days", type=int, default=7)
+    ap.add_argument("--bodies", action="store_true", help="기사 본문을 받아 본문 전체에서 요약 (Lambda와 같은 방식)")
     args = ap.parse_args()
 
     cfg = load_all(ROOT / "config")
@@ -47,7 +49,13 @@ def main() -> None:
             a.update(industries=c.industries, topics=c.topics, companies=c.companies, why=c.why)
         statuses = snap["feeds"]
     else:
-        res = collect(cfg["feeds"]["feeds"], clf, now, max_age_days=args.days)
+        fetcher = None
+        if args.bodies:
+            from collector.body import fetch_bodies
+            fetcher = fetch_bodies
+        res = collect(cfg["feeds"]["feeds"], clf, now, max_age_days=args.days, body_fetcher=fetcher)
+        if args.bodies:
+            print(f"본문 요약 {res.body_summaries}/{len(res.articles)}건 (나머지는 RSS 소개글 요약)")
         arts = snapshot.merge([], res.articles, now, args.days)
         statuses = res.statuses
         print(f"피드 성공 {sum(s.ok for s in statuses)}/{len(statuses)}, 기사 {len(arts)}건 "

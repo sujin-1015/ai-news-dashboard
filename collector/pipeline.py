@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from .classify import Classifier
 from .fetch import FetchResult, fetch_all
 from .parse import KST, article_id, clean_text, parse_date, parse_feed, truncate
-from .summarize import clean_description, summarize
+from .summarize import Idf, clean_description, summarize, summarize_body
 
 
 @dataclass
@@ -26,6 +26,7 @@ class CollectResult:
     statuses: list[FeedStatus]
     skipped_known: int = 0
     skipped_old: int = 0
+    body_summaries: int = 0  # 기사 본문으로 요약한 건수 (나머지는 RSS 소개글 요약)
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -70,8 +71,11 @@ def process(
     now: datetime,
     known_ids: set[str] | None = None,
     max_age_days: int = 7,
+    body_fetcher=None,
 ) -> CollectResult:
+    """body_fetcher(articles) → {id: 본문}. 주면 새 기사는 본문 전체에서 요약한다 (없거나 실패하면 RSS 소개글 요약)."""
     known_ids = known_ids or set()
+    docs: list[str] = []  # 단어 희귀도(IDF) 계산용: 이번 수집의 모든 RSS 제목+소개글
     cutoff = now - timedelta(days=max_age_days)
     seen: set[str] = set()
     out = CollectResult(articles=[], statuses=[])
@@ -89,6 +93,7 @@ def process(
             continue
         st.ok, st.items = True, len(items)
         for it in items:
+            docs.append(f"{it.title} {clean_text(it.summary_raw)}")
             try:
                 a = build_article(it, f, clf, now)
             except Exception as e:  # noqa: BLE001 - 기사 1건 문제로 피드 전체를 버리지 않는다
@@ -104,7 +109,24 @@ def process(
                 out.skipped_old += 1
                 continue
             out.articles.append(a)
+    if body_fetcher and out.articles:
+        apply_body_summaries(out, body_fetcher(out.articles), Idf(docs))
     return out
+
+
+def apply_body_summaries(out: CollectResult, bodies: dict[str, str], idf: Idf) -> None:
+    for a in out.articles:
+        body = bodies.get(a["id"])
+        if not body:
+            continue
+        try:
+            s = summarize_body(a["title"], body, idf)
+        except Exception as e:  # noqa: BLE001 - 요약 1건 실패는 RSS 요약 유지
+            out.errors.append(f"body_summary {a['id']}: {e}"[:200])
+            continue
+        if s:
+            a["summary"] = s
+            out.body_summaries += 1
 
 
 def collect(
@@ -115,6 +137,7 @@ def collect(
     max_age_days: int = 7,
     workers: int = 16,
     timeout: float = 10.0,
+    body_fetcher=None,
 ) -> CollectResult:
     active = [f for f in feeds if f.get("enabled", True)]
-    return process(fetch_all(active, workers, timeout), clf, now, known_ids, max_age_days)
+    return process(fetch_all(active, workers, timeout), clf, now, known_ids, max_age_days, body_fetcher)

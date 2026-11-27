@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -26,10 +27,11 @@ from stacks.github_oidc_stack import GithubOidcStack  # noqa: E402
 
 
 def build_lambda_assets() -> dict[str, Path]:
-    """Docker 없이 Lambda 패키지 폴더를 만든다. (외부 의존성이 없어서 복사만 하면 된다)
+    """Docker 없이 Lambda 패키지 폴더를 만든다.
 
-    collector: collector 패키지 + 핸들러 + 설정(YAML→JSON)
-    chat:      chat 핸들러 + llm 패키지
+    collector: collector 패키지 + 핸들러 + 설정(YAML→JSON) + 본문 추출 라이브러리(trafilatura)
+               → Lambda와 같은 arm64·Python 3.13용 휠을 pip로 받아 넣는다 (컴파일·Docker 불필요)
+    chat:      chat 핸들러 + llm 패키지 (외부 의존성 없음, 복사만)
     """
     if BUILD.exists():
         shutil.rmtree(BUILD)
@@ -38,6 +40,13 @@ def build_lambda_assets() -> dict[str, Path]:
     shutil.copytree(ROOT / "collector", col / "collector", ignore=ignore)
     shutil.copy2(ROOT / "lambdas" / "collector_handler.py", col)
     yaml_to_json(ROOT / "config", col / "config")
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
+         "--target", str(col), "--platform", "manylinux2014_aarch64", "--implementation", "cp",
+         "--python-version", "3.13", "--only-binary=:all:",
+         "-r", str(ROOT / "lambdas" / "collector-requirements.txt")],
+        check=True, env={**os.environ, "PYTHONUTF8": "1"},  # Windows에서 한글 주석이 든 요구사항 파일 읽기
+    )
     chat = BUILD / "chat"
     shutil.copytree(ROOT / "lambdas" / "chat", chat, ignore=ignore)
     return {"collector": col, "chat": chat}

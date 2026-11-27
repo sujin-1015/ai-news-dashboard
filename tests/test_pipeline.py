@@ -56,3 +56,23 @@ def test_snapshot_merge_window_and_order():
     merged = snapshot.merge([old, keep], new, NOW, 7)
     assert [a["id"] for a in merged] == ["n", "k"]
     assert merged[1]["v"] == "prev"
+
+
+def test_body_fetcher_replaces_summary_and_falls_back():
+    f = {"id": "a", "name": "A", "url": "x"}
+    feed = rss(("인터넷우체국 해킹 개인정보 유출", "https://ex.com/1", "2026-11-25 10:00:00"),
+               ("다른 기사", "https://ex.com/2", "2026-11-25 11:00:00"))
+    text = ("인터넷우체국이 해킹 공격을 받아 고객 개인정보가 유출된 것으로 확인됐다.\n"
+            "해커들은 배달장소 변경서비스에 접근한 것으로 파악됐다.\n"
+            "하루 분량의 유출 고객은 총 11만3855명으로 확인됐다.\n"
+            "우정사업본부는 해당 서비스를 중단하고 경찰에 수사를 의뢰했다.")
+
+    def fetcher(arts):
+        return {arts[0]["id"]: text}  # 두 번째 기사는 본문 실패
+
+    r = process([FetchResult(f, feed, None, 1)], CLF, NOW, body_fetcher=fetcher)
+    by_title = {a["title"]: a for a in r.articles}
+    assert r.body_summaries == 1
+    assert "11만3855명" in by_title["인터넷우체국 해킹 개인정보 유출"]["summary"]
+    plain = {a["title"]: a for a in process([FetchResult(f, feed, None, 1)], CLF, NOW).articles}
+    assert by_title["다른 기사"]["summary"] == plain["다른 기사"]["summary"]  # 실패하면 RSS 소개글 요약 그대로
