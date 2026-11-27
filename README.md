@@ -1,6 +1,6 @@
 # AI 뉴스 대시보드 (AWS 서버리스)
 
-국내 IT·AI 매체와 정부·공공기관 RSS 48개를 **매시간** 모아 **업종 / 주제 / 기업**별로 분류해 보여주는 개인 학습용 대시보드.
+국내 IT·AI 매체와 정부·공공기관 RSS 47개를 **매시간** 모아 **업종 / 주제 / 기업**별로 분류해 보여주는 개인 학습용 대시보드.
 AI 직무 준비 과정에서 "AWS 서비스를 직접 설계하고, 코드(IaC)로 배포하고, CI/CD까지 구성했다"는 것을 보여주기 위한 포트폴리오 프로젝트입니다.
 
 - 서버 관리 없음 (Lambda + S3 + CloudFront + DynamoDB), VPC·NAT 없음, **월 약 $0.1 이하**
@@ -20,7 +20,7 @@ flowchart LR
   ROLE -- cdk deploy --> CFN[CloudFormation]
 
   SCH[EventBridge Scheduler<br/>60분마다] --> COL[Lambda: collector<br/>Python 3.13 · arm64]
-  COL -- 병렬 HTTP --> RSS[(RSS 48개)]
+  COL -- 병렬 HTTP --> RSS[(RSS 47개)]
   COL -- 신규 기사만<br/>조건부 쓰기 --> DDB[(DynamoDB Articles<br/>on-demand · TTL 180일)]
   COL -- data/articles.json --> S3[(S3 버킷<br/>퍼블릭 차단)]
 
