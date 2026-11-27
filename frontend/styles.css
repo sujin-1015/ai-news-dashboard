@@ -345,10 +345,10 @@ kbd {
 .card h2 a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: var(--ink-4); }
 .card h2 a:visited { color: inherit; }
 
+/* 요약: 줄 수 제한·'…' 없이 전부 보여주고, 줄은 카드 폭 끝까지 채운 뒤 넘긴다 (긴 단어 앞에서 일찍 끊기지 않게) */
 .summary {
-  margin: 5px 0 0; font-size: 14px; line-height: 1.6; color: var(--ink-2); max-width: 72ch;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-  word-break: keep-all; overflow-wrap: anywhere;
+  margin: 5px 0 0; font-size: 14px; line-height: 1.6; color: var(--ink-2);
+  word-break: normal; overflow-wrap: anywhere;
 }
 
 /* 같은 사건을 다룬 다른 매체 기사 (묶음) */

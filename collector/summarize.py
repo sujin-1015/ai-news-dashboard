@@ -5,15 +5,17 @@
 1. 군더더기 제거: 기자 머리말, 사진 설명, 기사 끝 저작권·이메일, 붙어 있는 문장 띄우기
 2. 문장 분리: 매체가 중간에 자른 마지막 조각은 버린다
 3. 점수 = 제목과 겹치는 글자 조각 비율 + 앞쪽 문장 가산점 − 짧은 문장·인용문 감점
-4. 상위 2문장을 원래 순서로, 문장이 끊기지 않게 SUMMARY_LIMIT자 이내로
+4. 점수 순으로 SUMMARY_LIMIT자 안에 들어가는 문장을 최대 2개 골라 원래 순서로 (문장을 자르지 않는다)
+5. 완결된 문장이 없으면(매체가 중간에 잘라 보냄) 요약을 비운다 — 끝이 '…'로 끊긴 요약은 만들지 않는다
 """
 from __future__ import annotations
 
 import re
 
-from .parse import truncate
+from .parse import SUMMARY_MAX
 
-SUMMARY_LIMIT = 170  # 저작권: 짧은 요약만 (최대 200자 제한 안쪽)
+SUMMARY_LIMIT = 170  # 두 문장 합계 목표 길이
+# 한 문장만 쓸 때는 SUMMARY_MAX(200자, 저작권: 짧은 요약만)까지 허용, 그보다 긴 문장은 쓰지 않는다
 
 _BYLINE = [
     # [서울=뉴시스] 이정필 기자 = / (서울=연합뉴스) 홍길동 기자 = / [시사저널e=송준영 기자]
@@ -29,7 +31,9 @@ _INLINE_NOISE = [
 _NOISE_SENT = re.compile(r"사진은|사진=|\(왼쪽부터\)|\(오른쪽부터\)|무단\s*전재|재배포|저작권자|공감언론|기사제보")
 _GLUED = re.compile(r"([다요음함]\.)(?=[가-힣A-Za-z\"'“‘(\[●■▲◆△▶])")
 _SPLIT = re.compile(r"(?<=[다요음함]\.)\s+|(?<=[?!])\s+|(?<=[다요]\.[\"”’'])\s+")
-_TERMINAL = re.compile(r"[.?!][\"”’']?$")
+_TERMINAL = re.compile(r"(?<![.])[.?!][\"”’']?$")  # "..", "..."로 끝나면 매체가 자른 것
+# 소제목이 본문 첫 문장에 붙어 들어온 경우("○○ 5조 매출… 신작 열풍13년 만에 …했다.")
+_SUBHEAD = re.compile(r"…|···|⋯")
 _QUOTE = re.compile(r"[\"“].*[\"”]\s*(?:며|고\s*(?:말|강조|설명)했다)|고\s*말했다\.$")
 _LEAD_SYMBOL = re.compile(r"^[\s▲■◆●△▶]+")
 
@@ -66,29 +70,23 @@ def score_sentences(title: str, sents: list[str]) -> list[float]:
     for i, s in enumerate(sents):
         cover = len(_bigrams(s) & t) / len(t) if t else 0.0
         position = max(0.0, 1 - 0.15 * i)
-        penalty = (1.0 if len(s) < 25 else 0.0) + (0.4 if _QUOTE.search(s) else 0.0)
+        penalty = ((1.0 if len(s) < 25 else 0.0)
+                   + (0.4 if _QUOTE.search(s) else 0.0)
+                   + (1.0 if _SUBHEAD.search(s) else 0.0))
         scores.append(cover + 0.5 * position - penalty)
     return scores
-
-
-def _fit(sents: list[str], limit: int) -> str:
-    out = ""
-    for s in sents:
-        if out and len(out) + 1 + len(s) > limit:
-            break
-        out = f"{out} {s}".strip()
-    return out if len(out) <= limit else truncate(out, limit)
 
 
 def summarize(title: str, text: str, limit: int = SUMMARY_LIMIT, max_sentences: int = 2) -> str:
     sents = split_sentences(text)
     if not sents:
-        # 완결 문장이 없음 (매체가 짧게 잘라 보냄) → 정리한 글을 길이만 맞춘다
-        return truncate(clean_description(text), limit)
+        return ""  # 완결 문장 없음 → 잘린 글을 보여주지 않는다
     scores = score_sentences(title, sents)
-    top = sorted(sorted(range(len(sents)), key=lambda i: -scores[i])[:max_sentences])
-    picked = [sents[i] for i in top]
-    # 2위 문장이 길이 제한을 넘기면 1위 문장만
-    best = sents[max(range(len(sents)), key=lambda i: scores[i])]
-    out = _fit(picked, limit)
-    return out if best in out else truncate(best, limit)
+    picked: list[int] = []
+    for i in sorted(range(len(sents)), key=lambda i: -scores[i]):
+        total = sum(len(sents[j]) + 1 for j in picked) + len(sents[i])
+        if (not picked and len(sents[i]) <= SUMMARY_MAX) or (picked and total <= limit):
+            picked.append(i)
+        if len(picked) >= max_sentences:
+            break
+    return " ".join(sents[i] for i in sorted(picked))

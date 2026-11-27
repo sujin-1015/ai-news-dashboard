@@ -50,6 +50,15 @@ const appendAll = (parent, ...children) => { for (const c of children) if (c != 
 const safeUrl =(u) => (/^https?:\/\//i.test(u) ? u : "#");
 const kstDay = (d) => new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10);
 
+// 요약은 완결된 문장으로만 보여준다. 예전 수집분·북마크 사본처럼 중간에서 잘린 요약('…')은
+// 마지막 완결 문장까지만, 완결 문장이 없으면 숨긴다.
+function displaySummary(s) {
+  if (!s) return "";
+  if (/[.?!]["”’']?$/.test(s)) return s;
+  const m = s.match(/^.*[다요][.]["”’']?(?=\s)|^.*[?!](?=\s)/s);
+  return m ? m[0].trim() : "";
+}
+
 function relTime(iso) {
   const diff = (Date.now() - new Date(iso).getTime()) / 60000;
   if (diff < 1) return "방금";
@@ -222,7 +231,7 @@ function card(a, others = groupOf.get(a.id) || []) {
       a.dateGuessed ? el("span", { class: "guess", title: "발행 시각이 없어 수집 시각으로 표시" }, "(추정)") : null,
     ),
     el("h2", {}, el("a", { href: safeUrl(a.link), target: "_blank", rel: "noopener noreferrer", onclick: markRead, onauxclick: markRead }, a.title)),
-    a.summary ? el("p", { class: "summary" }, a.summary) : null,
+    displaySummary(a.summary) ? el("p", { class: "summary" }, displaySummary(a.summary)) : null,
     relatedBox(others, (o) => { if (!readSet.has(o.id)) { readSet.add(o.id); saveRead(); } }),
     bm?.memo ? el("div", { class: "memo" }, bm.memo) : null,
     whyBox,

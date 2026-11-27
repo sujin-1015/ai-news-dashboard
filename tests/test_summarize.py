@@ -1,6 +1,6 @@
 import pytest
 
-from collector.summarize import SUMMARY_LIMIT, clean_description, split_sentences, summarize
+from collector.summarize import clean_description, split_sentences, summarize
 
 # 2026-11 실제 RSS 소개글 형태를 줄인 예시
 NEWSIS = (
@@ -56,14 +56,22 @@ def test_summary_skips_caption_and_ceremony():
 
 def test_summary_length_and_whole_sentences():
     out = summarize("제목", AJU)
-    assert len(out) <= SUMMARY_LIMIT <= 200  # 저작권: 짧은 요약만
-    assert out.endswith(".")
+    assert len(out) <= 200  # 저작권: 짧은 요약만
+    assert out.endswith(".") and "…" not in out
 
 
-def test_summary_fallback_when_no_complete_sentence():
+def test_summary_empty_when_no_complete_sentence():
+    # 매체가 문장 중간에서 잘라 보낸 글은 '…'로 끊어 보여주지 않고 요약을 비운다
     raw = "삼성디스플레이가 약 2억1000만 유로를 투자해 ams 오스람의 최대주주에 오른다는 내용으로 " * 5
-    out = summarize("삼성D ams 오스람", raw)
-    assert 0 < len(out) <= SUMMARY_LIMIT and out.endswith("…")
+    assert summarize("삼성D ams 오스람", raw) == ""
+
+
+def test_summary_never_cuts_a_sentence():
+    long_first = "가" * 210 + "했다."  # 200자를 넘는 문장은 쓰지 않는다
+    raw = f"{long_first} 삼성전자가 새 반도체 공장을 짓는다고 밝혔다. 투자 규모는 10조원이다."
+    out = summarize("삼성전자 반도체 공장", raw)
+    assert out == "삼성전자가 새 반도체 공장을 짓는다고 밝혔다. 투자 규모는 10조원이다."
+    assert "…" not in out
 
 
 def test_summary_empty():
@@ -73,3 +81,15 @@ def test_summary_empty():
 def test_split_on_glued_bullet_subhead():
     raw = "정부는 응시 제한을 10년까지 연장할 계획이다.● 스마트기기 부정행위 증가 교육부는 대책을 발표했다."
     assert split_sentences(raw)[0] == "정부는 응시 제한을 10년까지 연장할 계획이다."
+
+
+def test_publisher_cut_with_dots_is_not_a_sentence():
+    raw = "이중근 부영회장이 우정학원의 신임 이사장으로 취임했다. 부영그룹은 우정학원이 지난 2.."
+    assert split_sentences(raw) == ["이중근 부영회장이 우정학원의 신임 이사장으로 취임했다."]
+
+
+def test_sentence_with_glued_subhead_is_avoided():
+    raw = ("출시 첫날 5조 매출… 신작 게임 열풍13년 만에 돌아온 신작 게임이 출시 첫날 매출 5조 원을 기록했다. "
+           "미국 록스타게임스가 19일 출시한 신작 게임에 전 세계가 들썩이고 있다.")
+    out = summarize("신작 게임 출시 첫날 5조 매출", raw, max_sentences=1)
+    assert "…" not in out
