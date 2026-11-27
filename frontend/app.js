@@ -438,7 +438,7 @@ async function main() {
     windowDays = snap.windowDays || 7;
     $("#updated").textContent = `업데이트 ${relTime(snap.generatedAt)} · 최근 ${snap.windowDays}일 ${snap.count.toLocaleString()}건`;
     const bad = (snap.feeds || []).filter((f) => !f.ok);
-    $("#feedHealth").textContent = ` · 수집 피드 ${snap.feeds.length - bad.length}/${snap.feeds.length} 정상`;
+    $("#feedHealth").textContent = `수집 피드 ${snap.feeds.length - bad.length}/${snap.feeds.length} 정상`;
     if (bad.length) $("#feedHealth").title = bad.map((f) => `${f.name}: ${f.error}`).join("\n");
   } catch (e) {
     $("#loading").hidden = true;
