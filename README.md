@@ -114,28 +114,6 @@ flowchart LR
 
 ---
 
-## 예상 월 비용 (서울 리전)
-
-**가정**: 60분마다 수집(월 720회, 1회 약 20초, 512MB), 신규 기사 하루 약 1,000건, 방문 하루 50회, 챗봇 하루 30회.
-
-| 서비스 | 사용량 | 예상 비용 |
-|---|---|---|
-| Lambda | 약 7,000 GB-초, 약 2천 건 호출 | $0 (상시 무료 월 40만 GB-초·100만 건 안) |
-| EventBridge Scheduler | 720회 | $0 (월 1,400만 회 무료) |
-| DynamoDB on-demand | 쓰기 약 6만 건(GSI 포함), 저장 0.1GB 미만 | 약 $0.1 |
-| S3 | 저장 약 10MB, PUT/GET 약 2천 건 | 약 $0.01 |
-| CloudFront | 약 1GB, 요청 약 5만 건 | $0 (상시 무료 1TB·1,000만 건 안) |
-| API Gateway HTTP API | 약 900건 | 약 $0.001 |
-| SSM Parameter Store | 표준 파라미터 2개 | $0 |
-| CloudWatch Logs | 수집 약 50MB, 14일 보존 | $0 (월 5GB 무료) |
-| AWS Budgets | 예산 2개 | $0 |
-| **합계** | | **약 $0.1 / 월** (+ VAT 10%) |
-
-- 단가는 공개 가격의 근사치다. 실제 비용은 Billing → Cost Explorer에서 `project=ai-news-dashboard` 태그로 확인한다(태그는 모든 리소스에 자동으로 붙는다).
-- Gemini 무료 티어는 Google 쪽이라 AWS 청구서와 무관하다.
-
----
-
 ## 보안 / 가드레일 체크리스트
 
 - [x] VPC·NAT Gateway 없음, Lambda는 VPC 밖
