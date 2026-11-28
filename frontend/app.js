@@ -177,7 +177,7 @@ function renderTabs(baseGroups) {
   const tab = (value, label, n) =>
     el("button", {
       class: "tab", role: "tab", "aria-selected": String(state.industry === value),
-      onclick: () => { state.industry = value; apply(); },
+      onclick: () => { state.industry = value; apply(); window.scrollTo({ top: 0 }); },
     }, label, el("span", { class: "n" }, n.toLocaleString()));
   $("#industryTabs").replaceChildren(tab("", "전체", baseGroups.length), ...INDUSTRIES.map((i) => tab(i, i, counts[i])));
 }
@@ -327,6 +327,7 @@ function renderRank(key, list, risingOf = () => "") {
   const wrap = $(key === "keyword" ? "#topKeywordsWrap" : "#topCompaniesWrap");
   const ol = $(key === "keyword" ? "#topKeywords" : "#topCompanies");
   wrap.hidden = list.length === 0 && !state[key];
+  ol.classList.toggle("plain", key === "keyword");
   ol.replaceChildren(...list.map(([v, n], i) => {
     const up = risingOf(v);
     return el("li", {},
@@ -335,9 +336,10 @@ function renderRank(key, list, risingOf = () => "") {
         title: [state[key] === v ? "선택 해제" : `${v} 기사만 보기`, up].filter(Boolean).join("\n"),
         onclick: () => { state[key] = state[key] === v ? "" : v; syncControls(); apply(); },
       },
-      el("span", { class: "rk" }, String(i + 1)),
+      // 핵심 이슈는 순위·건수 숫자 없이 키워드만
+      key === "keyword" ? null : el("span", { class: "rk" }, String(i + 1)),
       el("span", { class: "nm" }, v, up ? el("span", { class: "up", "aria-label": "급상승" }, "▲") : null),
-      el("span", { class: "ct" }, n.toLocaleString())));
+      key === "keyword" ? null : el("span", { class: "ct" }, n.toLocaleString())));
   }));
 }
 
