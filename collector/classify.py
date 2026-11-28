@@ -41,6 +41,12 @@ def _rule(label: str, keywords: list[str], exclude: list[str] | None = None, **k
     return _Rule(label, pats, exs, **kw)
 
 
+def is_relevant(topics: list[str], companies: list[str], feed_kind: str = "media") -> bool:
+    """대시보드에 올릴 기사인가: 주제 1개 이상, 또는 사전에 있는 기업, 또는 정부·공공 피드.
+    업종 키워드만 걸린 기사(게임 업데이트·쇼핑 특가 등)나 아무 것도 안 걸린 '기타' 기사는 뺀다."""
+    return bool(topics) or bool(companies) or feed_kind == "gov"
+
+
 @dataclass
 class Classification:
     industries: list[str]

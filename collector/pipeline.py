@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from .classify import Classifier
+from .classify import Classifier, is_relevant
 from .fetch import FetchResult, fetch_all
 from .parse import KST, article_id, clean_text, parse_date, parse_feed, truncate
 from .summarize import Idf, clean_description, summarize, summarize_body
@@ -26,6 +26,7 @@ class CollectResult:
     statuses: list[FeedStatus]
     skipped_known: int = 0
     skipped_old: int = 0
+    skipped_irrelevant: int = 0  # 주제·기업이 없는 기사 (classify.is_relevant)
     body_summaries: int = 0  # 기사 본문으로 요약한 건수 (나머지는 RSS 소개글 요약)
     errors: list[str] = field(default_factory=list)
 
@@ -102,6 +103,9 @@ def process(
             if a is None or a["id"] in seen:
                 continue
             seen.add(a["id"])
+            if not is_relevant(a["topics"], a["companies"], f.get("kind", "media")):
+                out.skipped_irrelevant += 1
+                continue
             if a["id"] in known_ids:
                 out.skipped_known += 1
                 continue

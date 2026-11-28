@@ -59,11 +59,15 @@ def main() -> None:
         arts = snapshot.merge([], res.articles, now, args.days)
         statuses = res.statuses
         print(f"피드 성공 {sum(s.ok for s in statuses)}/{len(statuses)}, 기사 {len(arts)}건 "
-              f"(기간 밖 {res.skipped_old}건 제외)")
+              f"(기간 밖 {res.skipped_old}건, 주제·기업 없음 {res.skipped_irrelevant}건 제외)")
         for s in statuses:
             if not s.ok:
                 print(f"  ✗ {s.id}: {s.error}")
 
+    kinds = {f["id"]: f.get("kind", "media") for f in cfg["feeds"]["feeds"]}
+    arts, dropped = snapshot.keep_relevant(arts, clf, kinds)
+    if dropped:
+        print(f"관련 없는 기사 {dropped}건 제외 (주제·기업 없음)")
     n_clusters = snapshot.enrich(arts, clf.company_terms())
     grouped = sum(1 for a in arts if a.get("cluster"))
     print(f"비슷한 기사 묶음 {n_clusters}개 (기사 {grouped}건 → 화면 카드 {len(arts) - grouped + n_clusters}개)")

@@ -27,6 +27,7 @@ import re
 from collections import defaultdict
 from datetime import datetime
 import math
+from bisect import bisect_right
 
 from .summarize import content_tokens
 
@@ -48,6 +49,9 @@ QUOTE_SIM = 0.3
 _MIN_IDF = 1.5
 _MIN_IDF_CHAR = 2.0  # 너무 흔한 낱말은 내용 비교에서 뺀다
 _RARE_DF = 60  # 이보다 흔한 글자 조각은 후보 찾기 색인에서 뺀다 (속도)
+# 내용 비교 후보: 이보다 드문 낱말만으로 점수를 미리 더해 PRE_SIM 이상인 쌍만 전체 낱말로 정확히 계산 (속도)
+_COMMON_WORD_DF = 300
+_PRE_SIM = 0.15
 
 _BRACKETS = re.compile(r"\[[^\]]*\]|【[^】]*】|\([^)]*\)")
 _NON_WORD = re.compile(r"[^\w가-힣]")
@@ -100,10 +104,11 @@ def _hours(a: dict, b: dict) -> float:
     return abs((datetime.fromisoformat(a["publishedAt"]) - datetime.fromisoformat(b["publishedAt"])).total_seconds()) / 3600
 
 
-def _subject_veto(a: dict, b: dict, sim: float) -> bool:
+def _subject_veto(a: dict, b: dict, sim: float, ja: frozenset | None = None, jb: frozenset | None = None) -> bool:
     """주어(쉼표 앞)가 다른 회사면 다른 기사: "A사, 우수기업 선정" ≠ "B사, 우수기업 선정".
-    단, 같은 기업으로 매칭됐으면(LG유플러스 ↔ LGU+) 표기만 다른 것."""
-    ja, jb = _subject(a["title"]), _subject(b["title"])
+    단, 같은 기업으로 매칭됐으면(LG유플러스 ↔ LGU+) 표기만 다른 것. ja/jb: 미리 계산한 주어 (속도)."""
+    if ja is None:
+        ja, jb = _subject(a["title"]), _subject(b["title"])
     return bool(ja and jb and jaccard(ja, jb) < 0.2 and sim < 0.85
                 and not set(a.get("companies", [])) & set(b.get("companies", [])))
 
@@ -173,11 +178,12 @@ def _dot(u: dict[str, float], v: dict[str, float]) -> float:
     return sum(x * v.get(w, 0.0) for w, x in u.items())
 
 
-def _same_story(a: dict, b: dict, ta: frozenset, tb: frozenset, sa: frozenset, sb: frozenset) -> bool:
-    if _hours(a, b) > (SAME_SOURCE_HOURS if a["source"] == b["source"] else WINDOW_HOURS):
+def _same_story(a: dict, b: dict, ta: frozenset, tb: frozenset, sa: frozenset, sb: frozenset,
+                hours: float, ja: frozenset, jb: frozenset) -> bool:
+    if hours > (SAME_SOURCE_HOURS if a["source"] == b["source"] else WINDOW_HOURS):
         return False
     sim = jaccard(ta, tb)
-    if _subject_veto(a, b, sim):
+    if _subject_veto(a, b, sim, ja, jb):
         return False
     if sim >= STRONG:
         return True
@@ -198,6 +204,9 @@ def assign(articles: list[dict]) -> int:
     n = len(articles)
     titles = [bigrams(normalize_title(a["title"])) for a in articles]
     summaries = [bigrams(normalize_title(a.get("summary", "")[:80])) for a in articles]
+    subjects = [_subject(a["title"]) for a in articles]
+    ts = [_ts(a) for a in articles]
+    hours = lambda i, j: abs(ts[i] - ts[j]) / 3600
 
     index: dict[str, list[int]] = defaultdict(list)
     for i, t in enumerate(titles):
@@ -211,7 +220,8 @@ def assign(articles: list[dict]) -> int:
             if len(lst) <= _RARE_DF:
                 cand.update(j for j in lst if j > i)
         for j in cand:
-            if uf.find(i) != uf.find(j) and _same_story(articles[i], articles[j], t, titles[j], summaries[i], summaries[j]):
+            if uf.find(i) != uf.find(j) and _same_story(articles[i], articles[j], t, titles[j], summaries[i], summaries[j],
+                                                        hours(i, j), subjects[i], subjects[j]):
                 uf.union(i, j)
 
     # 2차: 내용 비교 (다른 매체끼리만). 따로 남은 기사를 묶음에 붙이거나 둘을 짝짓기만 한다.
@@ -220,28 +230,50 @@ def assign(articles: list[dict]) -> int:
     members: dict[int, list[int]] = defaultdict(list)
     for k in range(n):
         members[uf.find(k)].append(k)
-    windex: dict[str, list[int]] = defaultdict(list)
-    for i, v in enumerate(vecs):
+    # 발행 시각 순으로 색인해 각 기사는 WINDOW_HOURS 안의 기사하고만 점수를 더한다 (속도)
+    order = sorted(range(n), key=lambda k: ts[k])
+    windex: dict[str, list[int]] = defaultdict(list)    # 낱말 → 시각 순위 목록
+    wtimes: dict[str, list[float]] = defaultdict(list)  # 같은 순서의 발행 시각
+    wdf: dict[str, int] = defaultdict(int)
+    for v in vecs:
         for w in v:
-            windex[w].append(i)
-    for i, v in enumerate(vecs):
+            wdf[w] += 1
+    for r, k in enumerate(order):
+        for w in vecs[k]:
+            if wdf[w] <= _COMMON_WORD_DF:
+                windex[w].append(r)
+                wtimes[w].append(ts[k])
+    span = WINDOW_HOURS * 3600
+    for r, i in enumerate(order):
+        v = vecs[i]
         score: dict[int, float] = defaultdict(float)
         for w, x in v.items():
-            for j in windex[w]:
-                if j > i:
-                    score[j] += x * vecs[j][w]
-        for j, c in score.items():
+            if wdf[w] > _COMMON_WORD_DF:
+                continue
+            ranks, times = windex[w], wtimes[w]
+            lo = bisect_right(ranks, r)
+            hi = bisect_right(times, ts[i] + span, lo)
+            for q in range(lo, hi):
+                j = order[ranks[q]]
+                score[j] += x * vecs[j][w]
+        a = articles[i]
+        for j, pre in score.items():
+            if pre < _PRE_SIM:
+                continue
+            b = articles[j]
+            if a["source"] == b["source"]:
+                continue
+            c = _dot(v, vecs[j])
+            if c < MIX_WORD_MIN:
+                continue
             ri, rj = uf.find(i), uf.find(j)
-            if c < MIX_WORD_MIN or ri == rj:
+            if ri == rj:
                 continue
             if c < CONTENT_SIM:
                 ch = _dot(cvecs[i], cvecs[j])
                 if ch < MIX_CHAR_MIN or (c + ch) / 2 < MIX_SIM:
                     continue
-            a, b = articles[i], articles[j]
-            if a["source"] == b["source"] or _hours(a, b) > WINDOW_HOURS:
-                continue
-            if c < CONTENT_OVERRIDE and _subject_veto(a, b, jaccard(titles[i], titles[j])):
+            if c < CONTENT_OVERRIDE and _subject_veto(a, b, jaccard(titles[i], titles[j]), subjects[i], subjects[j]):
                 continue
             # 이미 묶인 두 묶음은 기사 한 쌍이 아니라 전체가 비슷할 때만 합친다: 관련 있지만 다른 사건이
             # 사슬처럼 이어지는 것 방지 (예: "LGU+ 배송로봇 5G SA 실증" + "통신 3사 5G SA 상용화")
@@ -268,11 +300,12 @@ def assign(articles: list[dict]) -> int:
             for j in holders:
                 a, b = articles[i], articles[j]
                 ri, rj = uf.find(i), uf.find(j)
-                if ri == rj or a["source"] == b["source"] or _hours(a, b) > WINDOW_HOURS:
+                if ri == rj or a["source"] == b["source"] or hours(i, j) > WINDOW_HOURS:
                     continue
                 if uf.size[ri] > 1 and uf.size[rj] > 1:
                     continue
-                if _subject_veto(a, b, jaccard(titles[i], titles[j])) or _dot(cvecs[i], cvecs[j]) < QUOTE_SIM:
+                if (_subject_veto(a, b, jaccard(titles[i], titles[j]), subjects[i], subjects[j])
+                        or _dot(cvecs[i], cvecs[j]) < QUOTE_SIM):
                     continue
                 uf.union(i, j)
 
