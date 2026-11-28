@@ -240,6 +240,7 @@ kbd {
   font-size: 13px; color: var(--ink-2);
   transition: background-color var(--t) var(--ease), color var(--t) var(--ease);
 }
+.rank.plain button { grid-template-columns: 1fr; }
 .rank button:hover { background: var(--surface-2); color: var(--ink); }
 .rank .rk { font-size: 11px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
 .rank .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

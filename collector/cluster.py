@@ -11,18 +11,29 @@
   (매일 같은 제목으로 나오는 "오늘의 시세" 같은 연재가 날짜를 넘어 묶이지 않게).
 - A≈B, B≈C면 A·B·C 한 묶음 (Union-Find). 묶음 id = 가장 먼저 발행된 기사 id.
 - 대표 기사: 요약이 가장 충실한 기사 (요약 길이 → 발행 시각 순).
+- 내용 비교(2차): 제목은 달라도 내용이 거의 같은 다른 매체 기사를 묶는다.
+  제목(2배 가중)+요약(본문에서 뽑은 핵심 문장)의 낱말을 TF-IDF로 바꿔 코사인 유사도 ≥ CONTENT_SIM.
+  흔한 낱말(보도자료 상투어)은 가중치가 낮고 기업명·인명·숫자처럼 드문 낱말이 크게 반영된다.
+  같은 매체끼리는 쓰지 않는다 (속보·공시·보도자료 양식이 같아 내용이 비슷해 보임).
 """
 from __future__ import annotations
 
 import re
 from collections import defaultdict
 from datetime import datetime
+import math
+
+from .summarize import content_tokens
 
 STRONG = 0.6
 WEAK = 0.4
 SUMMARY_SIM = 0.3
 WINDOW_HOURS = 48
 SAME_SOURCE_HOURS = 12
+CONTENT_SIM = 0.5
+GROUP_SIM = 0.4  # 이미 묶인 두 묶음은 기사끼리 평균 유사도가 이 이상일 때만 합친다
+CONTENT_OVERRIDE = 0.7  # 이 이상이면 주어(쉼표 앞) 표기가 달라도 같은 기사 (KIRO ↔ 한국로봇융합硏)
+_MIN_IDF = 1.5  # 너무 흔한 낱말은 내용 비교에서 뺀다
 _RARE_DF = 60  # 이보다 흔한 글자 조각은 후보 찾기 색인에서 뺀다 (속도)
 
 _BRACKETS = re.compile(r"\[[^\]]*\]|【[^】]*】|\([^)]*\)")
@@ -49,6 +60,7 @@ def _numbers(s: str) -> set[str]:
 class _UnionFind:
     def __init__(self, n: int):
         self.p = list(range(n))
+        self.size = [1] * n
 
     def find(self, i: int) -> int:
         while self.p[i] != i:
@@ -59,7 +71,9 @@ class _UnionFind:
     def union(self, a: int, b: int) -> None:
         ra, rb = self.find(a), self.find(b)
         if ra != rb:
-            self.p[max(ra, rb)] = min(ra, rb)
+            lo, hi = min(ra, rb), max(ra, rb)
+            self.p[hi] = lo
+            self.size[lo] += self.size[hi]
 
 
 def _subject(title: str) -> frozenset:
@@ -68,15 +82,56 @@ def _subject(title: str) -> frozenset:
     return bigrams(normalize_title(head[0])) if len(head) == 2 and len(head[0]) <= 20 else frozenset()
 
 
+def _hours(a: dict, b: dict) -> float:
+    return abs((datetime.fromisoformat(a["publishedAt"]) - datetime.fromisoformat(b["publishedAt"])).total_seconds()) / 3600
+
+
+def _subject_veto(a: dict, b: dict, sim: float) -> bool:
+    """주어(쉼표 앞)가 다른 회사면 다른 기사: "A사, 우수기업 선정" ≠ "B사, 우수기업 선정".
+    단, 같은 기업으로 매칭됐으면(LG유플러스 ↔ LGU+) 표기만 다른 것."""
+    ja, jb = _subject(a["title"]), _subject(b["title"])
+    return bool(ja and jb and jaccard(ja, jb) < 0.2 and sim < 0.85
+                and not set(a.get("companies", [])) & set(b.get("companies", [])))
+
+
+def content_vectors(articles: list[dict]) -> list[dict[str, float]]:
+    """제목(2배)+요약 낱말의 TF-IDF 벡터 (길이 1로 정규화)."""
+    counts = []
+    for a in articles:
+        c: dict[str, int] = defaultdict(int)
+        for w in content_tokens(a["title"]):
+            c[w] += 2
+        for w in content_tokens(a.get("summary", "")):
+            c[w] += 1
+        counts.append(c)
+    df: dict[str, int] = defaultdict(int)
+    for c in counts:
+        for w in c:
+            df[w] += 1
+    n = len(articles)
+    out = []
+    for c in counts:
+        v = {}
+        for w, k in c.items():
+            idf = math.log(n / (1 + df[w]))
+            if idf > _MIN_IDF:
+                v[w] = k * idf
+        norm = math.sqrt(sum(x * x for x in v.values())) or 1.0
+        out.append({w: x / norm for w, x in v.items()})
+    return out
+
+
+def _dot(u: dict[str, float], v: dict[str, float]) -> float:
+    if len(u) > len(v):
+        u, v = v, u
+    return sum(x * v.get(w, 0.0) for w, x in u.items())
+
+
 def _same_story(a: dict, b: dict, ta: frozenset, tb: frozenset, sa: frozenset, sb: frozenset) -> bool:
-    hours = abs((datetime.fromisoformat(a["publishedAt"]) - datetime.fromisoformat(b["publishedAt"])).total_seconds()) / 3600
-    if hours > (SAME_SOURCE_HOURS if a["source"] == b["source"] else WINDOW_HOURS):
+    if _hours(a, b) > (SAME_SOURCE_HOURS if a["source"] == b["source"] else WINDOW_HOURS):
         return False
     sim = jaccard(ta, tb)
-    # 주어(쉼표 앞)가 다른 회사면 다른 기사: "A사, 우수기업 선정" ≠ "B사, 우수기업 선정"
-    # 단, 같은 기업으로 매칭됐으면(LG유플러스 ↔ LGU+) 표기만 다른 것
-    ja, jb = _subject(a["title"]), _subject(b["title"])
-    if ja and jb and jaccard(ja, jb) < 0.2 and sim < 0.85 and not set(a.get("companies", [])) & set(b.get("companies", [])):
+    if _subject_veto(a, b, sim):
         return False
     if sim >= STRONG:
         return True
@@ -112,6 +167,41 @@ def assign(articles: list[dict]) -> int:
         for j in cand:
             if uf.find(i) != uf.find(j) and _same_story(articles[i], articles[j], t, titles[j], summaries[i], summaries[j]):
                 uf.union(i, j)
+
+    # 2차: 내용 비교 (다른 매체끼리만). 따로 남은 기사를 묶음에 붙이거나 둘을 짝짓기만 한다.
+    vecs = content_vectors(articles)
+    members: dict[int, list[int]] = defaultdict(list)
+    for k in range(n):
+        members[uf.find(k)].append(k)
+    windex: dict[str, list[int]] = defaultdict(list)
+    for i, v in enumerate(vecs):
+        for w in v:
+            windex[w].append(i)
+    for i, v in enumerate(vecs):
+        score: dict[int, float] = defaultdict(float)
+        for w, x in v.items():
+            for j in windex[w]:
+                if j > i:
+                    score[j] += x * vecs[j][w]
+        for j, c in score.items():
+            ri, rj = uf.find(i), uf.find(j)
+            if c < CONTENT_SIM or ri == rj:
+                continue
+            a, b = articles[i], articles[j]
+            if a["source"] == b["source"] or _hours(a, b) > WINDOW_HOURS:
+                continue
+            if c < CONTENT_OVERRIDE and _subject_veto(a, b, jaccard(titles[i], titles[j])):
+                continue
+            # 이미 묶인 두 묶음은 기사 한 쌍이 아니라 전체가 비슷할 때만 합친다: 관련 있지만 다른 사건이
+            # 사슬처럼 이어지는 것 방지 (예: "LGU+ 배송로봇 5G SA 실증" + "통신 3사 5G SA 상용화")
+            if uf.size[ri] > 1 and uf.size[rj] > 1:
+                mi, mj = members[ri], members[rj]
+                avg = sum(_dot(vecs[x], vecs[y]) for x in mi for y in mj) / (len(mi) * len(mj))
+                if avg < GROUP_SIM:
+                    continue
+            uf.union(i, j)
+            root = uf.find(i)
+            members[root].extend(members.pop(rj if root == ri else ri))
 
     groups: dict[int, list[int]] = defaultdict(list)
     for i in range(n):

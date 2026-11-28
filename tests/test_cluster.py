@@ -70,3 +70,35 @@ def test_different_subject_companies_not_chained():
             art(2, "삼보컴퓨터, 2026년 대한민국 일·생활 균형 우수기업 선정", "전자신문"),
             art(3, "캐논코리아, '2026년 일·생활 균형 우수 기업' 선정", "전자신문")]
     assert assign(arts) == 0
+
+
+def _filler(n=40):
+    """IDF가 의미를 갖도록 서로 관계없는 기사들."""
+    topics = ["반도체", "배터리", "게임", "은행", "보험", "통신", "로봇", "클라우드", "보안", "자동차"]
+    return [art(100 + k, f"{topics[k % 10]} 업계 소식 {k}호 기업{k} 발표", f"매체{k}",
+                summary=f"기업{k}가 {topics[k % 10]} 신제품{k}을 공개했다. 판매 지역{k}에서 먼저 출시한다.")
+            for k in range(n)]
+
+
+def test_different_titles_same_content_grouped():
+    # 제목은 거의 겹치지 않지만 본문 핵심 내용(기업·숫자·고유명사)이 같은 다른 매체 기사
+    a = art(1, "로봇 배달원 ‘달이’, 끊김없이 움직인다", "헤럴드경제",
+            summary="LG유플러스가 현대차·기아 로보틱스랩 배송로봇 달이에 5G 단독모드를 적용해 통신 품질을 검증했다. "
+                    "로봇은 의왕 연구소 일대 2킬로미터 구간을 주행했다.", companies=["LG유플러스"])
+    b = art(2, "LG U+, 현대차기아 배송로봇에 5G SA 실증", "디일렉",
+            summary="LG유플러스가 현대차·기아 로보틱스랩 배송로봇 달이에 5G 단독모드를 적용해 통신 품질을 검증했다. "
+                    "로봇은 의왕 연구소 일대 2킬로미터 구간을 주행하며 영상을 실시간 전송했다.", companies=["LG유플러스"])
+    arts = [a, b] + _filler()
+    assign(arts)
+    assert a.get("cluster") and a["cluster"] == b.get("cluster")
+
+
+def test_similar_content_same_source_not_grouped_by_content():
+    # 같은 매체의 양식 기사(공시·속보)는 내용 비교로 묶지 않는다
+    a = art(1, "핌스 배성일 전무 보유 변동", "디지털투데이",
+            summary="핌스 임원 배성일 전무가 소유 주식 수량 16만1266주 감소를 공시했다. 소유 지분율 변동 내역이다.")
+    b = art(2, "핌스 김영주 사장 보유 변동", "디지털투데이",
+            summary="핌스 임원 김영주 사장이 소유 주식 수량 337만주 감소를 공시했다. 소유 지분율 변동 내역이다.")
+    arts = [a, b] + _filler()
+    assign(arts)
+    assert not a.get("cluster")
