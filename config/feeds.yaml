@@ -37,7 +37,7 @@ feeds:
   - { id: mk_it,        name: 매일경제,        kind: media, url: "https://www.mk.co.kr/rss/50300009/" }
   - { id: mk_econ,      name: 매일경제,        kind: media, url: "https://www.mk.co.kr/rss/30100041/" }
   - { id: sedaily_it,   name: 서울경제,        kind: media, url: "https://www.sedaily.com/rss/it" }
-  - { id: herald_it,    name: 헤럴드경제,       kind: media, url: "https://biz.heraldcorp.com/rss/google/it" }
+  # 헤럴드경제(IT): 2026-11-28부터 수집 서버(AWS) 요청에 HTTP 403 → 목록에서 제외
   - { id: fnnews_it,    name: 파이낸셜뉴스,     kind: media, url: "https://www.fnnews.com/rss/r20/fn_realnews_it.xml" }
   - { id: chosunbiz_it, name: 조선비즈,        kind: media, url: "https://biz.chosun.com/arc/outboundfeeds/rss/category/it-science/?outputType=xml" }
   - { id: sisajournal_e, name: 시사저널e,      kind: media, url: "https://www.sisajournal-e.com/rss/allArticle.xml" }
