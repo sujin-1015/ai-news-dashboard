@@ -327,8 +327,7 @@ function renderRank(key, list, risingOf = () => "") {
   const wrap = $(key === "keyword" ? "#topKeywordsWrap" : "#topCompaniesWrap");
   const ol = $(key === "keyword" ? "#topKeywords" : "#topCompanies");
   wrap.hidden = list.length === 0 && !state[key];
-  ol.classList.toggle("plain", key === "keyword");
-  ol.replaceChildren(...list.map(([v, n], i) => {
+  ol.replaceChildren(...list.map(([v], i) => {
     const up = risingOf(v);
     return el("li", {},
       el("button", {
@@ -336,10 +335,8 @@ function renderRank(key, list, risingOf = () => "") {
         title: [state[key] === v ? "선택 해제" : `${v} 기사만 보기`, up].filter(Boolean).join("\n"),
         onclick: () => { state[key] = state[key] === v ? "" : v; syncControls(); apply(); },
       },
-      // 핵심 이슈는 순위·건수 숫자 없이 키워드만
-      key === "keyword" ? null : el("span", { class: "rk" }, String(i + 1)),
-      el("span", { class: "nm" }, v, up ? el("span", { class: "up", "aria-label": "급상승" }, "▲") : null),
-      key === "keyword" ? null : el("span", { class: "ct" }, n.toLocaleString())));
+      el("span", { class: "rk" }, String(i + 1)),
+      el("span", { class: "nm" }, v, up ? el("span", { class: "up", "aria-label": "급상승" }, "▲") : null)));
   }));
 }
 
