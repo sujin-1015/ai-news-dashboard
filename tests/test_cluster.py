@@ -1,3 +1,5 @@
+import random
+
 from collector.cluster import assign, normalize_title
 
 
@@ -73,10 +75,11 @@ def test_different_subject_companies_not_chained():
 
 
 def _filler(n=40):
-    """IDF가 의미를 갖도록 서로 관계없는 기사들."""
-    topics = ["반도체", "배터리", "게임", "은행", "보험", "통신", "로봇", "클라우드", "보안", "자동차"]
-    return [art(100 + k, f"{topics[k % 10]} 업계 소식 {k}호 기업{k} 발표", f"매체{k}",
-                summary=f"기업{k}가 {topics[k % 10]} 신제품{k}을 공개했다. 판매 지역{k}에서 먼저 출시한다.")
+    """IDF가 의미를 갖도록 서로 관계없는 기사들 (무작위 음절로 만든 제목·요약, 시드 고정)."""
+    rnd = random.Random(7)
+    word = lambda: "".join(chr(0xAC00 + rnd.randrange(11172)) for _ in range(rnd.randint(2, 4)))
+    return [art(100 + k, " ".join(word() for _ in range(5)), f"매체{k}",
+                summary=" ".join(word() for _ in range(12)) + "다.")
             for k in range(n)]
 
 
@@ -102,3 +105,43 @@ def test_similar_content_same_source_not_grouped_by_content():
     arts = [a, b] + _filler()
     assign(arts)
     assert not a.get("cluster")
+
+
+def test_rare_quoted_name_links_press_release_with_boilerplate_summary():
+    # 본문을 못 가져와 요약이 상투문인 보도자료도 드문 고유 이름('내 칩 경진대회')으로 이어진다
+    a = art(1, "대학생이 직접 만든 반도체 한자리에…'내 칩 경진대회' 개최", "디지털투데이",
+            summary="대학생과 대학원생이 직접 설계하고 제작한 반도체 칩의 기술력을 겨루는 자리가 마련됐다. "
+                    "과학기술정보통신부는 27일 대한전자공학회 2026년 추계학술대회에서 전국 대학생·대학원생을 대상으로 "
+                    "'제2회 내 칩(My Chip) 경진대회'를 개최했다. 이번 경진대회에는 전국 대학생·대학원생 43개팀(108명)이 참가했다.")
+    b = art(2, "대학(원)생이 설계한 반도체, 실제 칩으로 선보여 - 과기정통부, 「제2회 내 칩 경진대회」 개최 -", "과기정통부",
+            summary="대학(원)생이 설계한 반도체, 실제 칩으로 선보여 - 과기정통부, 「제2회 내 칩 경진대회」 개최 - "
+                    "관련 보도자료 내용입니다. 자세한 내용은 첨부파일을 참고하시기 바랍니다.")
+    arts = [a, b] + _filler()
+    assign(arts)
+    assert a.get("cluster") and a["cluster"] == b.get("cluster")
+
+
+def test_common_quoted_phrase_does_not_link():
+    # 여러 기사에 흔히 나오는 따옴표 말('역대 최대')은 고유 이름이 아니다
+    heads = ["해외 카드 결제액", "은행 이자이익", "ESS 입찰 규모", "수출 실적", "게임 동시접속자", "배당 총액", "전시회 참가국"]
+    arts = [art(k, f"{h} '역대 최대'", f"매체{k}", summary=f"{h} 관련 발표가 나왔다.")
+            for k, h in enumerate(heads)] + _filler()
+    assign(arts)
+    assert not any(a.get("cluster") for a in arts[:7])
+
+
+def test_mixed_word_and_char_similarity_groups_differently_summarized_reports():
+    # 매체마다 요약에 다른 문장이 뽑혀 낱말 유사도만으로는 기준(0.5)에 못 미치는 같은 사건
+    t = "2026-11-28T15:00:00+09:00"
+    a = art(1, "인터넷우체국 대규모 해킹…하루치만 11만명 넘어, 추가 피해 확대 우려", "데일리시큐", t,
+            summary="국민 생활과 밀접한 국가 우편서비스인 인터넷우체국이 외부 해킹 공격을 받아 등기우편 이용 고객의 개인정보가 대규모로 유출됐다. "
+                    "전체 조사 대상 기간 중 하루 분량의 정보를 분석한 결과로, 추가 조사에 따라 피해 규모가 크게 늘어날 가능성이 있다. "
+                    "과학기술정보통신부 우정사업본부(본부장 박인환)는 27일 밤 외부 해킹 공격으로 고객 개인정보가 포함된 우편물 접수 정보가 "
+                    "유출된 사실을 확인하고 정확한 피해 대상과 규모를 조사하고 있다고 밝혔다.")
+    b = art(2, "인터넷우체국 해킹에 11만4000명 개인정보 유출", "보안뉴스", t,
+            summary="인터넷우체국 해킹으로 11만명 이상의 고객 개인정보가 유출된 것으로 확인됐다. "
+                    "현재 정확한 개인정보 유출 대상과 전체 피해 규모를 파악 중이지만, 하루 분량의 개인정보 유출 고객은 법인을 포함해 "
+                    "총 11만3855명으로 확인됐다. 우정사업본부가 해킹에 따른 개인정보 유출 정황을 처음 인지한 시점은 25일 오전 10시30분께다.")
+    arts = [a, b] + _filler()
+    assign(arts)
+    assert a.get("cluster") and a["cluster"] == b.get("cluster")
