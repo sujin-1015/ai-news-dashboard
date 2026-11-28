@@ -38,7 +38,7 @@ topics:
   AI 일반:
     fallback_industry: IT   # 업종이 하나도 없을 때만 IT로
     group: 신기술
-    keywords: [AI, 인공지능, 머신러닝, 딥러닝, 에이아이]
+    keywords: [AI, 인공지능, 머신러닝, 딥러닝, 에이아이, 에이전트, 디지털 트윈, 디지털트윈]
   생성형AI:
     fallback_industry: IT   # 업종이 하나도 없을 때만 IT로
     group: 신기술
@@ -67,7 +67,8 @@ topics:
     fallback_industry: IT   # 업종이 하나도 없을 때만 IT로
     group: 보안
     keywords: [보안, 정보보호, 사이버, 제로트러스트, 제로 트러스트, 취약점, 보안 업데이트, CVE, 인증서, 본인인증, 다중인증, MFA, 암호화, 보안관제, ISMS, 보안 공시, 정보보호 공시]
-    exclude: [보안관, 보안요원]
+    # '보안관'(경비원)만 빼고 '보안관리'·'보안관제'는 살린다
+    exclude: [학교보안관, 보안관이, 보안관은, 보안관을, 보안관들, 보안관과, 보안요원]
   해킹·유출:
     fallback_industry: IT   # 업종이 하나도 없을 때만 IT로
     group: 보안

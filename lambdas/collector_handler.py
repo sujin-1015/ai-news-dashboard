@@ -46,6 +46,7 @@ s3 = boto3.client("s3")
 table = boto3.resource("dynamodb").Table(TABLE)
 _cfg = load_all(CONFIG_DIR)  # 콜드 스타트 때 한 번만
 _clf = Classifier(_cfg["taxonomy"], _cfg["companies"])
+FEED_KINDS = {f["id"]: f.get("kind", "media") for f in _cfg["feeds"]["feeds"]}
 
 
 def jlog(event: str, **kw) -> None:
@@ -126,6 +127,7 @@ def handler(event, context):
         "new": len(res.articles),
         "written": written,
         "skipped_known": res.skipped_known,
+        "skipped_irrelevant": res.skipped_irrelevant,
         "body_summaries": res.body_summaries,
     }
 
@@ -134,6 +136,8 @@ def handler(event, context):
         return {"ok": False, **summary}
 
     merged = snapshot.merge(previous, res.articles, now, WINDOW_DAYS)
+    # 이미 올라간 기사도 같은 기준으로 다시 거른다 (기준·사전을 바꾸면 다음 수집에 전체 반영)
+    merged, summary["dropped_irrelevant"] = snapshot.keep_relevant(merged, _clf, FEED_KINDS)
     summary["clusters"] = snapshot.enrich(merged, _clf.company_terms())
     body = snapshot.build(merged, res.statuses, now, WINDOW_DAYS, _clf.topic_groups)
     s3.put_object(

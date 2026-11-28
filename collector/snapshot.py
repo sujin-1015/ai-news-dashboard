@@ -5,6 +5,7 @@ from dataclasses import asdict
 from datetime import datetime, timedelta
 
 from . import cluster, keywords
+from .classify import Classifier, is_relevant
 from .parse import KST
 
 SCHEMA_VERSION = 1
@@ -19,6 +20,23 @@ def merge(previous: list[dict], new: list[dict], now: datetime, window_days: int
     kept = [a for a in by_id.values() if datetime.fromisoformat(a["publishedAt"]) >= cutoff]
     kept.sort(key=lambda a: a["publishedAt"], reverse=True)
     return kept
+
+
+def keep_relevant(articles: list[dict], clf: Classifier, feed_kinds: dict[str, str]) -> tuple[list[dict], int]:
+    """관련 없는 기사를 뺀다 (이미 스냅샷에 있는 기사 포함). 반환: (남은 기사, 뺀 건수).
+
+    기준에 안 맞는 기사는 지금 사전으로 제목만 다시 분류해 본다 (사전을 고친 뒤 새로 주제가 붙는 기사는
+    살리고 분류도 갱신). 요약은 처음 분류할 때 쓴 소개글보다 길어 '정책'·'주식' 같은 넓은 말이 잘못 걸리므로 쓰지 않는다."""
+    kept: list[dict] = []
+    for a in articles:
+        kind = feed_kinds.get(a.get("feedId", ""), "media")
+        if not is_relevant(a.get("topics", []), a.get("companies", []), kind):
+            c = clf.classify(a["title"], "", kind)
+            if not is_relevant(c.topics, c.companies, kind):
+                continue
+            a.update(industries=c.industries, topics=c.topics, companies=c.companies, why=c.why)
+        kept.append(a)
+    return kept, len(articles) - len(kept)
 
 
 def enrich(articles: list[dict], company_terms: set[str]) -> int:
